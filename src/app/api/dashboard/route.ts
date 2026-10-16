@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getCached, setCached } from '@/lib/cache';
 
 export async function GET(req: Request) {
   try {
@@ -14,6 +15,12 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const cacheKey = `dashboard:${clientId || ''}:${department || ''}:${assigneeId || ''}:${contentType || ''}`;
+    const cached = getCached<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     // Filters for content items
@@ -263,7 +270,7 @@ export async function GET(req: Request) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 8);
 
-    return NextResponse.json({
+    const result = {
       allClients,
       clientProgressChart,
       statusDonutData,
@@ -272,7 +279,10 @@ export async function GET(req: Request) {
       billingSnapshot,
       urgentTasks: sortedUrgentTasks,
       teamMembers,
-    });
+    };
+
+    setCached(cacheKey, result, 30);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('API Error GET /api/dashboard:', error);
     return NextResponse.json({ error: 'Failed to load dashboard metrics' }, { status: 500 });

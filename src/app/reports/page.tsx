@@ -15,13 +15,13 @@ import {
 } from 'lucide-react';
 
 export default function ReportsPage() {
-  const { refreshTrigger, cachedClients } = useImpersonation();
+  const { refreshTrigger, cachedClients, cachedContent, cachedInvoices } = useImpersonation();
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [selectedClientId, setSelectedClientId] = useState('all');
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [contentItems, setContentItems] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
+  const [invoices, setInvoices] = useState<any[]>(() => (cachedInvoices && cachedInvoices.length > 0 ? cachedInvoices : []));
+  const [loading, setLoading] = useState(() => !cachedContent || cachedContent.length === 0);
 
   useEffect(() => {
     if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
@@ -41,7 +41,9 @@ export default function ReportsPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    if (contentItems.length === 0 && invoices.length === 0) {
+      setLoading(true);
+    }
 
     const contentUrl = selectedClientId === 'all' || !selectedClientId ? '/api/content' : `/api/content?clientId=${selectedClientId}`;
     const invoicesUrl = selectedClientId === 'all' || !selectedClientId ? '/api/invoices' : `/api/invoices?clientId=${selectedClientId}`;

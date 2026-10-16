@@ -156,12 +156,12 @@ function DroppableTrackerColumn({
 }
 
 export default function ContentTrackerPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedContent, setCachedContent } = useImpersonation();
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
-  const [contentItems, setContentItems] = useState<any[]>([]);
+  const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedContent || cachedContent.length === 0);
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
 
   // Filters
@@ -196,6 +196,13 @@ export default function ContentTrackerPage() {
       setUsers(cachedUsers);
     }
   }, [cachedUsers, users.length]);
+
+  useEffect(() => {
+    if (cachedContent && cachedContent.length > 0 && contentItems.length === 0 && !selectedClient && !selectedType && !selectedStatus) {
+      setContentItems(cachedContent);
+      setLoading(false);
+    }
+  }, [cachedContent, contentItems.length, selectedClient, selectedType, selectedStatus]);
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
@@ -242,6 +249,9 @@ export default function ContentTrackerPage() {
             });
           }
           setContentItems(data);
+          if (!selectedClient && !selectedType && !selectedStatus) {
+            setCachedContent(data);
+          }
         }
         setLoading(false);
       })

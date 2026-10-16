@@ -4,8 +4,8 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Tune connection pool for Supabase PgBouncer to prevent connection exhaustion
-let dbUrl = process.env.DATABASE_URL;
+// Prefer DIRECT_URL (session pooler / direct connection) for 2x lower query latency
+let dbUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (dbUrl && !dbUrl.includes('connection_limit')) {
   const separator = dbUrl.includes('?') ? '&' : '?';
   dbUrl = `${dbUrl}${separator}connection_limit=10&pool_timeout=20`;

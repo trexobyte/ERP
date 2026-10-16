@@ -20,13 +20,13 @@ import {
 } from 'lucide-react';
 
 export default function ClientsPage() {
-  const { effectiveRoleName, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
+  const { effectiveRoleName, refreshTrigger, triggerRefresh, cachedClients, setCachedClients, cachedUsers, setCachedUsers } = useImpersonation();
   const isSuperAdmin = effectiveRoleName === 'Super Admin';
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [clientToDelete, setClientToDelete] = useState<any | null>(null);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedClients || cachedClients.length === 0);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -95,7 +95,10 @@ export default function ClientsPage() {
     fetch('/api/clients', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setClients(data);
+        if (Array.isArray(data)) {
+          setClients(data);
+          setCachedClients(data);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -106,7 +109,10 @@ export default function ClientsPage() {
     fetch('/api/users', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data)) {
+          setUsers(data);
+          setCachedUsers(data);
+        }
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   };

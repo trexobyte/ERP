@@ -164,12 +164,12 @@ function DroppableTaskColumn({
 }
 
 export default function TasksPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedTasks, setCachedTasks } = useImpersonation();
   const [viewMode, setViewMode] = useState<'urgency' | 'kanban'>('urgency');
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>(() => (cachedTasks && cachedTasks.length > 0 ? cachedTasks : []));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedTasks || cachedTasks.length === 0);
   const [activeDragTask, setActiveDragTask] = useState<any | null>(null);
 
   const sensors = useSensors(
@@ -216,6 +216,13 @@ export default function TasksPage() {
       setUsers(cachedUsers);
     }
   }, [cachedUsers, users.length]);
+
+  useEffect(() => {
+    if (cachedTasks && cachedTasks.length > 0 && tasks.length === 0 && !selectedClient && !selectedAssignee && !selectedUrgency) {
+      setTasks(cachedTasks);
+      setLoading(false);
+    }
+  }, [cachedTasks, tasks.length, selectedClient, selectedAssignee, selectedUrgency]);
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
@@ -278,6 +285,9 @@ export default function TasksPage() {
           }
 
           setTasks(data);
+          if (!selectedClient && !selectedAssignee && !selectedUrgency) {
+            setCachedTasks(data);
+          }
         }
         setLoading(false);
       })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export async function GET(req: Request) {
   try {
@@ -17,6 +18,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const userId = (session.user as any)?.id;
+
+    const cacheKey = `content:${clientId || ''}:${status || ''}:${assigneeId || ''}:${type || ''}:${myItemsOnly ? userId : ''}`;
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     const where: any = {};
     if (clientId) where.clientId = clientId;
@@ -61,6 +68,7 @@ export async function GET(req: Request) {
       orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
     });
 
+    setCached(cacheKey, items, 30);
     return NextResponse.json(items);
   } catch (error) {
     console.error('API Error GET /api/content:', error);
@@ -118,6 +126,9 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('content');
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json(item);
   } catch (error) {
     console.error('API Error POST /api/content:', error);
@@ -181,6 +192,9 @@ export async function PUT(req: Request) {
       });
     }
 
+    invalidateCache('content');
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json(updated);
   } catch (error) {
     console.error('API Error PUT /api/content:', error);
@@ -200,6 +214,9 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     await prisma.contentItem.delete({ where: { id } });
+    invalidateCache('content');
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API Error DELETE /api/content:', error);

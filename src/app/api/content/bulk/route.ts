@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { invalidateCache } from '@/lib/cache';
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +59,9 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('content');
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json(createdItems);
   } catch (error: any) {
     console.error('API Error POST /api/content/bulk:', error);

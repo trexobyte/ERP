@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export async function GET(req: Request) {
   try {
@@ -16,6 +17,12 @@ export async function GET(req: Request) {
     const status = searchParams.get('status');
     const assigneeId = searchParams.get('assigneeId');
     const department = searchParams.get('department');
+
+    const cacheKey = `tasks:${clientId || ''}:${urgency || ''}:${status || ''}:${assigneeId || ''}:${department || ''}`;
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     const where: any = {};
     if (clientId) where.clientId = clientId;
@@ -66,6 +73,7 @@ export async function GET(req: Request) {
       ],
     });
 
+    setCached(cacheKey, tasks, 30);
     return NextResponse.json(tasks);
   } catch (error) {
     console.error('API Error GET /api/tasks:', error);
@@ -119,6 +127,8 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json(task);
   } catch (error: any) {
     console.error('API Error POST /api/tasks:', error);
@@ -171,8 +181,11 @@ export async function PUT(req: Request) {
         where: { id: updatedTask.contentItemId },
         data: { status: updateContentStatus },
       });
+      invalidateCache('content');
     }
 
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json(updatedTask);
   } catch (error) {
     console.error('API Error PUT /api/tasks:', error);
@@ -192,6 +205,8 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
 
     await prisma.task.delete({ where: { id } });
+    invalidateCache('tasks');
+    invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API Error DELETE /api/tasks:', error);

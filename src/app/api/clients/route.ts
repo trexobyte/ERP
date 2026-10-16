@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { isClientDeleted } from '@/lib/deleted-clients';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,12 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const cacheKey = 'clients:all';
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const clients = await prisma.client.findMany({
@@ -49,6 +56,7 @@ export async function GET() {
       },
     });
 
+    setCached(cacheKey, clients, 30);
     return NextResponse.json(clients);
   } catch (error) {
     console.error('API Error /api/clients:', error);
@@ -118,6 +126,8 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('clients');
+    invalidateCache('dashboard');
     return NextResponse.json(newClient);
   } catch (error: any) {
     console.error('API Error POST /api/clients:', error);

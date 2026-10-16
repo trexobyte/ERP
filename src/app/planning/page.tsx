@@ -214,12 +214,12 @@ function DraggableContentCard({
 }
 
 export default function PlanningPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedContent, setCachedContent } = useImpersonation();
   const [activeTab, setActiveTab] = useState<'calendar' | 'wizard'>('calendar');
 
   // Calendar State - always opens in current month
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [contentItems, setContentItems] = useState<any[]>([]);
+  const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [selectedClientFilter, setSelectedClientFilter] = useState('');
@@ -405,6 +405,12 @@ export default function PlanningPage() {
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
 
+  useEffect(() => {
+    if (cachedContent && cachedContent.length > 0 && contentItems.length === 0 && !selectedClientFilter && !myItemsOnly) {
+      setContentItems(cachedContent);
+    }
+  }, [cachedContent, contentItems.length, selectedClientFilter, myItemsOnly]);
+
   const fetchCalendarData = () => {
     const params = new URLSearchParams();
     if (selectedClientFilter) params.append('clientId', selectedClientFilter);
@@ -413,7 +419,12 @@ export default function PlanningPage() {
     fetch(`/api/content?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setContentItems(data);
+        if (Array.isArray(data)) {
+          setContentItems(data);
+          if (!selectedClientFilter && !myItemsOnly) {
+            setCachedContent(data);
+          }
+        }
       })
       .catch((err) => console.error('Failed to fetch content:', err));
   };

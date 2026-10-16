@@ -30,10 +30,10 @@ import {
 } from 'recharts';
 
 export default function BillingPage() {
-  const { effectivePermissions, refreshTrigger, triggerRefresh, cachedClients } = useImpersonation();
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const { effectivePermissions, refreshTrigger, triggerRefresh, cachedClients, cachedInvoices, setCachedInvoices } = useImpersonation();
+  const [invoices, setInvoices] = useState<any[]>(() => (cachedInvoices && cachedInvoices.length > 0 ? cachedInvoices : []));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedInvoices || cachedInvoices.length === 0);
 
   // Filters
   const [selectedClient, setSelectedClient] = useState('');
@@ -92,6 +92,13 @@ export default function BillingPage() {
       .catch((err) => console.error('Failed to fetch clients:', err));
   }, [refreshTrigger]);
 
+  useEffect(() => {
+    if (cachedInvoices && cachedInvoices.length > 0 && invoices.length === 0 && !selectedClient && !selectedStatus) {
+      setInvoices(cachedInvoices);
+      setLoading(false);
+    }
+  }, [cachedInvoices, invoices.length, selectedClient, selectedStatus]);
+
   const fetchBillingData = () => {
     if (invoices.length === 0) setLoading(true);
 
@@ -102,7 +109,12 @@ export default function BillingPage() {
     fetch(`/api/invoices?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setInvoices(data);
+        if (Array.isArray(data)) {
+          setInvoices(data);
+          if (!selectedClient && !selectedStatus) {
+            setCachedInvoices(data);
+          }
+        }
         setLoading(false);
       })
       .catch((err) => {

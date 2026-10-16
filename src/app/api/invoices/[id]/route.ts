@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { invalidateCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       });
     }
 
+    invalidateCache('invoices');
+    invalidateCache('clients');
+    invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/invoices/[id]:', error);

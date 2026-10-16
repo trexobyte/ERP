@@ -23,7 +23,17 @@ interface ImpersonationContextType {
   setMobileMenuOpen: (open: boolean) => void;
   toggleMobileMenu: () => void;
   cachedClients: any[];
+  setCachedClients: (data: any[]) => void;
   cachedUsers: any[];
+  setCachedUsers: (data: any[]) => void;
+  cachedTasks: any[];
+  setCachedTasks: (data: any[]) => void;
+  cachedContent: any[];
+  setCachedContent: (data: any[]) => void;
+  cachedInvoices: any[];
+  setCachedInvoices: (data: any[]) => void;
+  cachedDashboard: any;
+  setCachedDashboard: (data: any) => void;
   refreshTrigger: number;
   triggerRefresh: () => void;
 }
@@ -46,7 +56,17 @@ const ImpersonationContext = createContext<ImpersonationContextType>({
   setMobileMenuOpen: () => {},
   toggleMobileMenu: () => {},
   cachedClients: [],
+  setCachedClients: () => {},
   cachedUsers: [],
+  setCachedUsers: () => {},
+  cachedTasks: [],
+  setCachedTasks: () => {},
+  cachedContent: [],
+  setCachedContent: () => {},
+  cachedInvoices: [],
+  setCachedInvoices: () => {},
+  cachedDashboard: null,
+  setCachedDashboard: () => {},
   refreshTrigger: 0,
   triggerRefresh: () => {},
 });
@@ -215,10 +235,58 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     : {};
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [cachedClients, setCachedClients] = useState<any[]>([]);
-  const [cachedUsers, setCachedUsers] = useState<any[]>([]);
 
-  // Fetch and cache clients and users once when session is ready, and on refreshTrigger
+  // Safe session storage helpers for instant 0ms reload
+  const getStored = (key: string, defaultValue: any) => {
+    if (typeof window === 'undefined') return defaultValue;
+    try {
+      const item = sessionStorage.getItem(`trexo_cache_${key}`);
+      return item ? JSON.parse(item) : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const setStored = (key: string, value: any) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(`trexo_cache_${key}`, JSON.stringify(value));
+    } catch {}
+  };
+
+  const [cachedClients, setCachedClientsState] = useState<any[]>(() => getStored('clients', []));
+  const [cachedUsers, setCachedUsersState] = useState<any[]>(() => getStored('users', []));
+  const [cachedTasks, setCachedTasksState] = useState<any[]>(() => getStored('tasks', []));
+  const [cachedContent, setCachedContentState] = useState<any[]>(() => getStored('content', []));
+  const [cachedInvoices, setCachedInvoicesState] = useState<any[]>(() => getStored('invoices', []));
+  const [cachedDashboard, setCachedDashboardState] = useState<any>(() => getStored('dashboard', null));
+
+  const setCachedClients = (data: any[]) => {
+    setCachedClientsState(data);
+    setStored('clients', data);
+  };
+  const setCachedUsers = (data: any[]) => {
+    setCachedUsersState(data);
+    setStored('users', data);
+  };
+  const setCachedTasks = (data: any[]) => {
+    setCachedTasksState(data);
+    setStored('tasks', data);
+  };
+  const setCachedContent = (data: any[]) => {
+    setCachedContentState(data);
+    setStored('content', data);
+  };
+  const setCachedInvoices = (data: any[]) => {
+    setCachedInvoicesState(data);
+    setStored('invoices', data);
+  };
+  const setCachedDashboard = (data: any) => {
+    setCachedDashboardState(data);
+    setStored('dashboard', data);
+  };
+
+  // Prefetch and sync all core datasets once when session is ready, and on refreshTrigger
   useEffect(() => {
     if (!session?.user) return;
 
@@ -235,6 +303,34 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
         if (Array.isArray(data)) setCachedUsers(data);
       })
       .catch((err) => console.error('Failed to load shared users:', err));
+
+    fetch('/api/tasks')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedTasks(data);
+      })
+      .catch((err) => console.error('Failed to prefetch tasks:', err));
+
+    fetch('/api/content')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedContent(data);
+      })
+      .catch((err) => console.error('Failed to prefetch content:', err));
+
+    fetch('/api/invoices')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedInvoices(data);
+      })
+      .catch((err) => console.error('Failed to prefetch invoices:', err));
+
+    fetch('/api/dashboard')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setCachedDashboard(data);
+      })
+      .catch((err) => console.error('Failed to prefetch dashboard:', err));
   }, [session, refreshTrigger]);
 
   const toggleMobileMenu = () => setMobileMenuOpen((prev) => !prev);
@@ -272,7 +368,17 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
         setMobileMenuOpen,
         toggleMobileMenu,
         cachedClients,
+        setCachedClients,
         cachedUsers,
+        setCachedUsers,
+        cachedTasks,
+        setCachedTasks,
+        cachedContent,
+        setCachedContent,
+        cachedInvoices,
+        setCachedInvoices,
+        cachedDashboard,
+        setCachedDashboard,
         refreshTrigger,
         triggerRefresh,
       }}

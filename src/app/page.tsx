@@ -32,10 +32,10 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { effectiveRoleName, effectivePermissions, refreshTrigger, openQuickAdd } = useImpersonation();
+  const { effectiveRoleName, effectivePermissions, refreshTrigger, openQuickAdd, cachedDashboard, setCachedDashboard } = useImpersonation();
   const isSuperAdmin = effectiveRoleName === 'Super Admin';
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(() => cachedDashboard || null);
+  const [loading, setLoading] = useState(() => !cachedDashboard);
 
   // Filters
   const [selectedClient, setSelectedClient] = useState('');
@@ -45,8 +45,15 @@ export default function DashboardPage() {
 
   const canViewBilling = hasPermission(effectivePermissions, 'billing', 'view');
 
+  useEffect(() => {
+    if (cachedDashboard && !data && !selectedClient && !selectedDepartment && !selectedAssignee && !selectedContentType) {
+      setData(cachedDashboard);
+      setLoading(false);
+    }
+  }, [cachedDashboard, data, selectedClient, selectedDepartment, selectedAssignee, selectedContentType]);
+
   const fetchDashboard = () => {
-    setLoading(true);
+    if (!data) setLoading(true);
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);
     if (selectedDepartment) params.append('department', selectedDepartment);
@@ -60,6 +67,9 @@ export default function DashboardPage() {
       })
       .then((resData) => {
         setData(resData);
+        if (!selectedClient && !selectedDepartment && !selectedAssignee && !selectedContentType) {
+          setCachedDashboard(resData);
+        }
         setLoading(false);
       })
       .catch((err) => {

@@ -3,12 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const cacheKey = 'users:all';
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const users = await prisma.user.findMany({
@@ -35,6 +42,7 @@ export async function GET() {
       return rest;
     });
 
+    setCached(cacheKey, safeUsers, 30);
     return NextResponse.json(safeUsers);
   } catch (error) {
     console.error('API Error GET /api/users:', error);
@@ -105,6 +113,7 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('users');
     const { password: _, ...safeUser } = newUser;
     return NextResponse.json(safeUser);
   } catch (error: any) {
@@ -155,6 +164,7 @@ export async function PUT(req: Request) {
       },
     });
 
+    invalidateCache('users');
     const { password: _, ...safeUser } = updatedUser;
     return NextResponse.json(safeUser);
   } catch (error: any) {
@@ -201,6 +211,7 @@ export async function DELETE(req: Request) {
       });
     }
 
+    invalidateCache('users');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/users:', error);

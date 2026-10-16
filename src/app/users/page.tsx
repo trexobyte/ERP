@@ -32,11 +32,12 @@ export default function UsersPage() {
     openProfileModal,
     cachedClients,
     cachedUsers,
+    setCachedUsers,
   } = useImpersonation();
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [roles, setRoles] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>(cachedClients || []);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cachedUsers || cachedUsers.length === 0);
 
   // Tabs: Users List vs Role Builder Matrix
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
@@ -123,7 +124,10 @@ export default function UsersPage() {
 
       if (usersRes.ok) {
         const data = await usersRes.json();
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data)) {
+          setUsers(data);
+          setCachedUsers(data);
+        }
       } else {
         console.error('Failed to fetch users HTTP', usersRes.status);
       }
