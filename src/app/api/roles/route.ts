@@ -5,6 +5,11 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const roles = await prisma.role.findMany({
       include: {
         users: {
@@ -28,11 +33,10 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { name, permissions, isCustom } = body;
@@ -76,11 +80,10 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { id, name, permissions } = body;

@@ -5,6 +5,11 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get('clientId');
     const status = searchParams.get('status');
@@ -46,11 +51,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { clientId, invoiceNumber, amount, issueDate, dueDate, status, billingPeriod, paymentNotes } = body;
@@ -113,11 +117,10 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { id, status, paymentNotes, amount, dueDate, issueDate, billingPeriod } = body;
@@ -151,11 +154,10 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'Invoice ID required' }, { status: 400 });
 
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },

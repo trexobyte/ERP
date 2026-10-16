@@ -9,11 +9,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });

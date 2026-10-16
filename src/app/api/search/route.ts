@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q')?.trim() || '';
 
@@ -15,9 +23,9 @@ export async function GET(req: Request) {
         where: {
           deletedAt: null,
           OR: [
-            { name: { contains: q } },
-            { servicePackage: { contains: q } },
-            { packageTier: { contains: q } },
+            { name: { contains: q, mode: 'insensitive' as any } },
+            { servicePackage: { contains: q, mode: 'insensitive' as any } },
+            { packageTier: { contains: q, mode: 'insensitive' as any } },
           ],
         },
         take: 5,
@@ -26,10 +34,10 @@ export async function GET(req: Request) {
       prisma.contentItem.findMany({
         where: {
           OR: [
-            { title: { contains: q } },
-            { description: { contains: q } },
-            { type: { contains: q } },
-            { platform: { contains: q } },
+            { title: { contains: q, mode: 'insensitive' as any } },
+            { description: { contains: q, mode: 'insensitive' as any } },
+            { type: { contains: q, mode: 'insensitive' as any } },
+            { platform: { contains: q, mode: 'insensitive' as any } },
           ],
         },
         take: 5,
@@ -40,9 +48,9 @@ export async function GET(req: Request) {
       prisma.task.findMany({
         where: {
           OR: [
-            { title: { contains: q } },
-            { description: { contains: q } },
-            { urgency: { contains: q } },
+            { title: { contains: q, mode: 'insensitive' as any } },
+            { description: { contains: q, mode: 'insensitive' as any } },
+            { urgency: { contains: q, mode: 'insensitive' as any } },
           ],
         },
         take: 5,
@@ -53,8 +61,8 @@ export async function GET(req: Request) {
       prisma.invoice.findMany({
         where: {
           OR: [
-            { invoiceNumber: { contains: q } },
-            { billingPeriod: { contains: q } },
+            { invoiceNumber: { contains: q, mode: 'insensitive' as any } },
+            { billingPeriod: { contains: q, mode: 'insensitive' as any } },
           ],
         },
         take: 5,

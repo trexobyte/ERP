@@ -185,7 +185,7 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const userRole = (session?.user as any)?.roleName || 'Super Admin';
+  const userRole = (session?.user as any)?.roleName || (session ? 'Super Admin' : 'Guest');
   const rawPerms = (session?.user as any)?.permissions;
 
   const actualPermissions = parsePermissions(rawPerms);
@@ -196,7 +196,9 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     ? ROLE_PERMISSIONS_PRESETS[impersonatedRoleName] || ROLE_PERMISSIONS_PRESETS['Super Admin']
     : hasActualPermissions
     ? actualPermissions
-    : ROLE_PERMISSIONS_PRESETS[effectiveRoleName] || ROLE_PERMISSIONS_PRESETS['Super Admin'];
+    : session
+    ? ROLE_PERMISSIONS_PRESETS[effectiveRoleName] || ROLE_PERMISSIONS_PRESETS['Super Admin']
+    : {};
 
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);

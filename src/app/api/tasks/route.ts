@@ -5,6 +5,11 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get('clientId');
     const urgency = searchParams.get('urgency');
@@ -71,11 +76,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { title, description, clientId, contentItemId, assigneeId, dueDate, urgency, status } = body;
@@ -125,11 +129,10 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    let userId = (session?.user as any)?.id;
-    if (!userId) {
-      const firstUser = await prisma.user.findFirst();
-      userId = firstUser?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = (session.user as any)?.id;
 
     const body = await req.json();
     const { id, title, description, clientId, contentItemId, assigneeId, dueDate, urgency, status, updateContentStatus } = body;
@@ -179,6 +182,11 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Task ID required' }, { status: 400 });

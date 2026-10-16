@@ -12,6 +12,9 @@ export async function GET(req: Request) {
     const contentType = searchParams.get('contentType');
 
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Always fetch full list of non-deleted clients for dropdown options
     const allClients = await prisma.client.findMany({

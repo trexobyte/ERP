@@ -432,8 +432,8 @@ export function Header() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-foreground text-sm truncate">{currentUserName || user?.name || 'Ketan Shrestha'}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{user?.email || 'ketan@trexobyte.com'}</p>
+                  <p className="font-bold text-foreground text-sm truncate">{currentUserName || user?.name || 'User'}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{user?.email || ''}</p>
                   <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-[#FF3B00]/10 text-[#FF3B00] font-mono text-[10px] font-bold">
                     {effectiveRoleName}
                   </span>

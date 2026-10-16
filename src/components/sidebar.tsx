@@ -211,7 +211,7 @@ export function Sidebar() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-foreground truncate group-hover:text-[#FF3B00] transition-colors">
-                  {currentUserName || session?.user?.name || 'Ketan Shrestha'}
+                  {currentUserName || session?.user?.name || 'User'}
                 </span>
                 <Camera className="h-3 w-3 text-muted-foreground group-hover:text-[#FF3B00] transition-colors shrink-0" />
               </div>
