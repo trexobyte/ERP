@@ -214,14 +214,14 @@ function DraggableContentCard({
 }
 
 export default function PlanningPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
   const [activeTab, setActiveTab] = useState<'calendar' | 'wizard'>('calendar');
 
   // Calendar State - always opens in current month
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [contentItems, setContentItems] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [selectedClientFilter, setSelectedClientFilter] = useState('');
   const [myItemsOnly, setMyItemsOnly] = useState(false);
   const [hiddenClients, setHiddenClients] = useState<string[]>([]);
@@ -322,6 +322,7 @@ export default function PlanningPage() {
       title: string;
       scheduledDate: string;
       assigneeId: string;
+      status: string;
     }[]
   >([
     {
@@ -330,6 +331,7 @@ export default function PlanningPage() {
       title: 'Monthly Spotlight Reel',
       scheduledDate: `${currentMonthStr}-05`,
       assigneeId: '',
+      status: 'PLANNED',
     },
     {
       type: 'CAROUSEL',
@@ -337,6 +339,7 @@ export default function PlanningPage() {
       title: 'Top Highlights Carousel',
       scheduledDate: `${currentMonthStr}-12`,
       assigneeId: '',
+      status: 'PLANNED',
     },
     {
       type: 'SHOOT',
@@ -344,6 +347,7 @@ export default function PlanningPage() {
       title: 'On-Location Shoot Day',
       scheduledDate: `${currentMonthStr}-18`,
       assigneeId: '',
+      status: 'PLANNED',
     },
   ]);
   const [wizardSaving, setWizardSaving] = useState(false);
@@ -367,6 +371,19 @@ export default function PlanningPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedItem]);
+
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+      if (!wizardClientId) setWizardClientId(cachedClients[0].id);
+    }
+  }, [cachedClients, clients.length, wizardClientId]);
+
+  useEffect(() => {
+    if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
+      setUsers(cachedUsers);
+    }
+  }, [cachedUsers, users.length]);
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
@@ -533,24 +550,24 @@ export default function PlanningPage() {
     const ym = wizardMonth || format(new Date(), 'yyyy-MM');
     if (templateType === 'standard') {
       setWizardRows([
-        { type: 'SHOOT', platform: 'INSTAGRAM', title: 'Monthly Shoot Day', scheduledDate: `${ym}-02`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Behind the Scenes Reel 1', scheduledDate: `${ym}-05`, assigneeId: '' },
-        { type: 'CAROUSEL', platform: 'INSTAGRAM', title: 'Product Showcase Carousel', scheduledDate: `${ym}-08`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Trending Sound Reel 2', scheduledDate: `${ym}-12`, assigneeId: '' },
-        { type: 'STATIC_POST', platform: 'FACEBOOK', title: 'Customer Review Graphic', scheduledDate: `${ym}-15`, assigneeId: '' },
-        { type: 'REEL', platform: 'TIKTOK', title: 'Viral Challenge Short', scheduledDate: `${ym}-19`, assigneeId: '' },
-        { type: 'CAROUSEL', platform: 'LINKEDIN', title: 'Industry Insights Carousel', scheduledDate: `${ym}-22`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Offer Promo Reel 4', scheduledDate: `${ym}-26`, assigneeId: '' },
-        { type: 'AD_CREATIVE', platform: 'FACEBOOK', title: 'Monthly Retargeting Ad', scheduledDate: `${ym}-29`, assigneeId: '' },
+        { type: 'SHOOT', platform: 'INSTAGRAM', title: 'Monthly Shoot Day', scheduledDate: `${ym}-02`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Behind the Scenes Reel 1', scheduledDate: `${ym}-05`, assigneeId: '', status: 'PLANNED' },
+        { type: 'CAROUSEL', platform: 'INSTAGRAM', title: 'Product Showcase Carousel', scheduledDate: `${ym}-08`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Trending Sound Reel 2', scheduledDate: `${ym}-12`, assigneeId: '', status: 'PLANNED' },
+        { type: 'STATIC_POST', platform: 'FACEBOOK', title: 'Customer Review Graphic', scheduledDate: `${ym}-15`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'TIKTOK', title: 'Viral Challenge Short', scheduledDate: `${ym}-19`, assigneeId: '', status: 'PLANNED' },
+        { type: 'CAROUSEL', platform: 'LINKEDIN', title: 'Industry Insights Carousel', scheduledDate: `${ym}-22`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Offer Promo Reel 4', scheduledDate: `${ym}-26`, assigneeId: '', status: 'PLANNED' },
+        { type: 'AD_CREATIVE', platform: 'FACEBOOK', title: 'Monthly Retargeting Ad', scheduledDate: `${ym}-29`, assigneeId: '', status: 'PLANNED' },
       ]);
     } else if (templateType === 'heavy-reels') {
       setWizardRows([
-        { type: 'SHOOT', platform: 'INSTAGRAM', title: 'Video Production Day', scheduledDate: `${ym}-03`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 1: High Energy Edit', scheduledDate: `${ym}-06`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 2: Tutorial / How-To', scheduledDate: `${ym}-10`, assigneeId: '' },
-        { type: 'REEL', platform: 'TIKTOK', title: 'Reel 3: Comedy / Relatable', scheduledDate: `${ym}-14`, assigneeId: '' },
-        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 4: Client Testimonial', scheduledDate: `${ym}-18`, assigneeId: '' },
-        { type: 'REEL', platform: 'YOUTUBE', title: 'Reel 5: Cinematic Short', scheduledDate: `${ym}-24`, assigneeId: '' },
+        { type: 'SHOOT', platform: 'INSTAGRAM', title: 'Video Production Day', scheduledDate: `${ym}-03`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 1: High Energy Edit', scheduledDate: `${ym}-06`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 2: Tutorial / How-To', scheduledDate: `${ym}-10`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'TIKTOK', title: 'Reel 3: Comedy / Relatable', scheduledDate: `${ym}-14`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'INSTAGRAM', title: 'Reel 4: Client Testimonial', scheduledDate: `${ym}-18`, assigneeId: '', status: 'PLANNED' },
+        { type: 'REEL', platform: 'YOUTUBE', title: 'Reel 5: Cinematic Short', scheduledDate: `${ym}-24`, assigneeId: '', status: 'PLANNED' },
       ]);
     }
   };
@@ -921,6 +938,7 @@ export default function PlanningPage() {
                     <th className="p-3">Platform</th>
                     <th className="p-3">Working Title</th>
                     <th className="p-3">Target Date</th>
+                    <th className="p-3">Status</th>
                     <th className="p-3">Assignee</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
@@ -993,6 +1011,24 @@ export default function PlanningPage() {
                       </td>
                       <td className="p-3">
                         <select
+                          value={row.status || 'PLANNED'}
+                          onChange={(e) => {
+                            const next = [...wizardRows];
+                            next[idx].status = e.target.value;
+                            setWizardRows(next);
+                          }}
+                          className="rounded border border-input bg-background px-2 py-1 text-xs outline-hidden font-bold text-[#FF3B00]"
+                        >
+                          <option value="PLANNED">1. Planned</option>
+                          <option value="SHOT">2. Shot</option>
+                          <option value="EDITED">3. Edited</option>
+                          <option value="CLIENT_APPROVAL">4. Client Approval</option>
+                          <option value="SCHEDULED">5. Scheduled</option>
+                          <option value="PUBLISHED">6. Published</option>
+                        </select>
+                      </td>
+                      <td className="p-3">
+                        <select
                           value={row.assigneeId}
                           onChange={(e) => {
                             const next = [...wizardRows];
@@ -1014,10 +1050,10 @@ export default function PlanningPage() {
                           type="button"
                           onClick={() => {
                             const next = [...wizardRows];
-                            next.splice(idx + 1, 0, { ...row, title: `${row.title} (Copy)` });
+                            next.splice(idx + 1, 0, { ...row, title: `${row.title} (Copy)`, status: row.status || 'PLANNED' });
                             setWizardRows(next);
                           }}
-                          className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                           title="Duplicate Row"
                         >
                           <Copy className="h-3.5 w-3.5" />
@@ -1028,7 +1064,7 @@ export default function PlanningPage() {
                             const next = wizardRows.filter((_, i) => i !== idx);
                             setWizardRows(next);
                           }}
-                          className="p-1 rounded text-rose-500 hover:bg-rose-500/10"
+                          className="p-1 rounded text-rose-500 hover:bg-rose-500/10 cursor-pointer"
                           title="Delete Row"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1040,7 +1076,7 @@ export default function PlanningPage() {
               </table>
             </div>
 
-            <div className="flex justify-between items-center pt-2">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() =>
@@ -1052,10 +1088,11 @@ export default function PlanningPage() {
                       title: '',
                       scheduledDate: format(new Date(), 'yyyy-MM-dd'),
                       assigneeId: '',
+                      status: 'PLANNED',
                     },
                   ])
                 }
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-input bg-background text-xs font-semibold hover:bg-muted"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-input bg-background text-xs font-semibold hover:bg-muted cursor-pointer"
               >
                 <Plus className="h-4 w-4 text-[#FF3B00]" /> Add New Deliverable Row
               </button>
@@ -1063,7 +1100,7 @@ export default function PlanningPage() {
               <button
                 type="submit"
                 disabled={wizardSaving}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#FF3B00] text-white font-bold text-xs hover:bg-[#e03400] transition-all shadow-md clicky-btn"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-md bg-[#FF3B00] text-white font-bold text-xs hover:bg-[#e03400] transition-all shadow-md clicky-btn cursor-pointer"
               >
                 {wizardSaving ? 'Bulk Generating Content...' : `Save ${wizardRows.length} Items to Calendar`}
                 <Check className="h-4 w-4" />
@@ -1081,8 +1118,8 @@ export default function PlanningPage() {
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-xl bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+          <div className="w-full max-w-xl bg-card border-2 border-border shadow-2xl rounded-xl p-5 sm:p-6 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-border pb-3 shrink-0">
               <div className="flex items-center gap-2">
                 <span
                   className="px-2.5 py-0.5 rounded text-[10px] font-bold text-white uppercase"
@@ -1102,14 +1139,15 @@ export default function PlanningPage() {
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                 title="Close (Esc)"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveItemEdit} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveItemEdit} className="flex-1 overflow-y-auto space-y-4 text-xs pr-1 flex flex-col">
+              <div className="space-y-4 flex-1">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Deliverable Title *
@@ -1288,12 +1326,14 @@ export default function PlanningPage() {
                 </>
               )}
 
-              <div className="flex justify-between items-center pt-3 border-t border-border">
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t border-border pt-3 mt-auto shrink-0 flex justify-between items-center">
                 <button
                   type="button"
                   onClick={handleDeleteItem}
                   disabled={deletingEdit}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-red-500 hover:bg-red-500/10 font-bold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-md text-red-500 hover:bg-red-500/10 font-bold transition-colors cursor-pointer"
                 >
                   <Trash2 className="h-4 w-4" />
                   {deletingEdit ? 'Deleting...' : 'Delete Deliverable'}
@@ -1303,14 +1343,14 @@ export default function PlanningPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedItem(null)}
-                    className="px-4 py-2 rounded-md font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="px-4 py-2 rounded-md font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={savingEdit}
-                    className="flex items-center gap-2 px-5 py-2 rounded-md bg-[#FF3B00] text-white font-bold hover:bg-[#e03400] transition-all shadow-md clicky-btn"
+                    className="flex items-center gap-2 px-5 py-2 rounded-md bg-[#FF3B00] text-white font-bold hover:bg-[#e03400] transition-all shadow-md clicky-btn cursor-pointer"
                   >
                     {savingEdit ? 'Saving...' : 'Save Changes'}
                     <Check className="h-4 w-4" />

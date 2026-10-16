@@ -19,6 +19,11 @@ interface ImpersonationContextType {
   profileModalOpen: boolean;
   setProfileModalOpen: (open: boolean) => void;
   openProfileModal: () => void;
+  mobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
+  cachedClients: any[];
+  cachedUsers: any[];
   refreshTrigger: number;
   triggerRefresh: () => void;
 }
@@ -37,6 +42,11 @@ const ImpersonationContext = createContext<ImpersonationContextType>({
   profileModalOpen: false,
   setProfileModalOpen: () => {},
   openProfileModal: () => {},
+  mobileMenuOpen: false,
+  setMobileMenuOpen: () => {},
+  toggleMobileMenu: () => {},
+  cachedClients: [],
+  cachedUsers: [],
   refreshTrigger: 0,
   triggerRefresh: () => {},
 });
@@ -204,6 +214,31 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     ? ROLE_PERMISSIONS_PRESETS[effectiveRoleName] || ROLE_PERMISSIONS_PRESETS['Super Admin']
     : {};
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [cachedClients, setCachedClients] = useState<any[]>([]);
+  const [cachedUsers, setCachedUsers] = useState<any[]>([]);
+
+  // Fetch and cache clients and users once when session is ready, and on refreshTrigger
+  useEffect(() => {
+    if (!session?.user) return;
+
+    fetch('/api/clients')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedClients(data);
+      })
+      .catch((err) => console.error('Failed to load shared clients:', err));
+
+    fetch('/api/users')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedUsers(data);
+      })
+      .catch((err) => console.error('Failed to load shared users:', err));
+  }, [session, refreshTrigger]);
+
+  const toggleMobileMenu = () => setMobileMenuOpen((prev) => !prev);
+
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
@@ -233,6 +268,11 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
         profileModalOpen,
         setProfileModalOpen,
         openProfileModal,
+        mobileMenuOpen,
+        setMobileMenuOpen,
+        toggleMobileMenu,
+        cachedClients,
+        cachedUsers,
         refreshTrigger,
         triggerRefresh,
       }}

@@ -5,11 +5,19 @@ import { useImpersonation } from '@/components/providers';
 import { X, Calendar, CheckSquare, Camera, Sparkles, Building2, Lock } from 'lucide-react';
 
 export function QuickAddModal() {
-  const { quickAddOpen, setQuickAddOpen, quickAddType, quickAddDate, triggerRefresh } = useImpersonation();
+  const {
+    quickAddOpen,
+    setQuickAddOpen,
+    quickAddType,
+    quickAddDate,
+    triggerRefresh,
+    cachedClients,
+    cachedUsers,
+  } = useImpersonation();
   const [activeTab, setActiveTab] = useState<'content' | 'task' | 'shoot'>('content');
   const [loading, setLoading] = useState(false);
-  const [clients, setClients] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
 
   // Destination mode: 'agency' (shared among all users) or 'personal' (my calendar only)
   const [isPersonal, setIsPersonal] = useState(false);
@@ -19,6 +27,7 @@ export function QuickAddModal() {
   const [title, setTitle] = useState('');
   const [type, setType] = useState('REEL');
   const [platform, setPlatform] = useState('INSTAGRAM');
+  const [status, setStatus] = useState('PLANNED');
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [assigneeId, setAssigneeId] = useState('');
   const [description, setDescription] = useState('');
@@ -48,14 +57,29 @@ export function QuickAddModal() {
   }, [quickAddOpen, quickAddType, quickAddDate]);
 
   useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+      if (!clientId || clientId === '__PERSONAL__') {
+        setClientId(cachedClients[0].id);
+      }
+    }
+  }, [cachedClients, clients.length, clientId]);
+
+  useEffect(() => {
+    if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
+      setUsers(cachedUsers);
+    }
+  }, [cachedUsers, users.length]);
+
+  useEffect(() => {
     if (quickAddOpen) {
       fetch('/api/clients')
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => {
-          if (Array.isArray(data)) {
+          if (Array.isArray(data) && data.length > 0) {
             setClients(data);
-            if (data.length > 0) {
-              setClientId((prev) => (prev && prev !== '__PERSONAL__' ? prev : data[0].id));
+            if (!clientId || clientId === '__PERSONAL__') {
+              setClientId(data[0].id);
             }
           }
         })
@@ -154,7 +178,7 @@ export function QuickAddModal() {
           description: description ? description.trim() : null,
           platform: platform || 'INSTAGRAM',
           scheduledDate: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
-          status: 'PLANNED',
+          status: status || 'PLANNED',
           assigneeId: assigneeId || null,
         }),
       });
@@ -163,6 +187,7 @@ export function QuickAddModal() {
         setQuickAddOpen(false);
         setTitle('');
         setDescription('');
+        setStatus('PLANNED');
         triggerRefresh();
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -222,11 +247,11 @@ export function QuickAddModal() {
       onClick={(e) => {
         if (e.target === e.currentTarget) setQuickAddOpen(false);
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200"
     >
-      <div className="w-full max-w-xl bg-card border-2 border-border shadow-2xl rounded-xl overflow-hidden text-card-foreground">
+      <div className="w-full max-w-xl bg-card border-2 border-border shadow-2xl rounded-xl overflow-hidden text-card-foreground max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-5 py-3.5 shrink-0">
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-[#FF3B00] animate-pulse" />
             <h2 className="font-bold text-lg tracking-tight flex items-center gap-2">
@@ -243,7 +268,7 @@ export function QuickAddModal() {
         </div>
 
         {/* TARGET DESTINATION TOGGLE BAR */}
-        <div className="p-3 bg-muted/40 border-b border-border">
+        <div className="p-3 bg-muted/40 border-b border-border shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-muted-foreground">
               Target Destination:
@@ -289,7 +314,8 @@ export function QuickAddModal() {
         {/* CASE 1: PERSONAL / PRIVATE MODE (Simplified: Name, Date, Description)     */}
         {/* ========================================================================= */}
         {isPersonal ? (
-          <form onSubmit={handleSubmitPersonal} className="p-5 space-y-4">
+          <form onSubmit={handleSubmitPersonal} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 flex flex-col">
+            <div className="space-y-4 flex-1">
             <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30 text-xs text-purple-300 space-y-1">
               <p className="font-bold flex items-center gap-1.5">
                 <Lock className="h-4 w-4 text-purple-400" /> Personal Task / Reminder Mode
@@ -341,7 +367,9 @@ export function QuickAddModal() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            </div>
+
+            <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 z-10 flex justify-end gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setQuickAddOpen(false)}
@@ -362,9 +390,9 @@ export function QuickAddModal() {
           /* ========================================================================= */
           /* CASE 2: AGENCY VIEW (Shared across team: Content Item / Shoot / Task)    */
           /* ========================================================================= */
-          <div>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Tab Selection */}
-            <div className="flex border-b border-border bg-muted/20 p-1.5 gap-1">
+            <div className="flex border-b border-border bg-muted/20 p-1.5 gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('content')}
@@ -391,7 +419,8 @@ export function QuickAddModal() {
 
             {/* Content & Shoot Form */}
             {(activeTab === 'content' || activeTab === 'shoot') && (
-              <form onSubmit={handleSubmitAgencyContent} className="p-5 space-y-4">
+              <form onSubmit={handleSubmitAgencyContent} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 flex flex-col">
+                <div className="space-y-4 flex-1">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Target Client Account *
@@ -434,7 +463,7 @@ export function QuickAddModal() {
                       <select
                         value={type}
                         onChange={(e) => setType(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                       >
                         <option value="REEL">Reel / Short</option>
                         <option value="CAROUSEL">Carousel Post</option>
@@ -452,13 +481,30 @@ export function QuickAddModal() {
                     <select
                       value={platform}
                       onChange={(e) => setPlatform(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                     >
                       <option value="INSTAGRAM">Instagram</option>
                       <option value="FACEBOOK">Facebook</option>
                       <option value="TIKTOK">TikTok</option>
                       <option value="YOUTUBE">YouTube</option>
                       <option value="LINKEDIN">LinkedIn</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                      Status / Tracker Stage *
+                    </label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-bold text-[#FF3B00]"
+                    >
+                      <option value="PLANNED">1. Planned</option>
+                      <option value="SHOT">2. Shot</option>
+                      <option value="EDITED">3. Edited</option>
+                      <option value="CLIENT_APPROVAL">4. Client Approval</option>
+                      <option value="SCHEDULED">5. Scheduled</option>
+                      <option value="PUBLISHED">6. Published</option>
                     </select>
                   </div>
                   <div>
@@ -470,7 +516,7 @@ export function QuickAddModal() {
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
                       required
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                     />
                   </div>
                 </div>
@@ -506,7 +552,9 @@ export function QuickAddModal() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                </div>
+
+                <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 z-10 flex justify-end gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setQuickAddOpen(false)}
@@ -527,7 +575,8 @@ export function QuickAddModal() {
 
             {/* Task Form */}
             {activeTab === 'task' && (
-              <form onSubmit={handleSubmitAgencyTask} className="p-5 space-y-4">
+              <form onSubmit={handleSubmitAgencyTask} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 flex flex-col">
+                <div className="space-y-4 flex-1">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                     Task Title *
@@ -622,7 +671,9 @@ export function QuickAddModal() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                </div>
+
+                <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 z-10 flex justify-end gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={() => setQuickAddOpen(false)}

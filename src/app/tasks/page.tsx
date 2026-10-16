@@ -164,11 +164,11 @@ function DroppableTaskColumn({
 }
 
 export default function TasksPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
   const [viewMode, setViewMode] = useState<'urgency' | 'kanban'>('urgency');
   const [tasks, setTasks] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(true);
   const [activeDragTask, setActiveDragTask] = useState<any | null>(null);
 
@@ -205,25 +205,37 @@ export default function TasksPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [promptContentItem]);
 
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+    }
+  }, [cachedClients, clients.length]);
+
+  useEffect(() => {
+    if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
+      setUsers(cachedUsers);
+    }
+  }, [cachedUsers, users.length]);
+
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setClients(data);
+        if (Array.isArray(data) && data.length > 0) setClients(data);
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
     fetch('/api/users')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data) && data.length > 0) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
 
   const fetchTasks = () => {
-    setLoading(true);
+    if (tasks.length === 0) setLoading(true);
 
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);
@@ -677,9 +689,9 @@ export default function TasksPage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setPromptContentItem(null);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-5 space-y-4">
+          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-border pb-3">
               <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-[#FF3B00]" /> Linked Deliverable Found!

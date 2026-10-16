@@ -66,6 +66,9 @@ model Client {
 
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+
+  @@index([deletedAt])
+  @@index([status])
 }
 
 model ClientAssignment {
@@ -99,6 +102,11 @@ model ContentItem {
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([scheduledDate])
 }
 
 model Task {
@@ -120,6 +128,12 @@ model Task {
 
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
+  @@index([status])
+  @@index([urgency])
+  @@index([clientId])
+  @@index([assigneeId])
+  @@index([dueDate])
 }
 
 model Invoice {
@@ -138,6 +152,10 @@ model Invoice {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([dueDate])
 }
 
 model Payment {
@@ -152,6 +170,8 @@ model Payment {
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([invoiceId])
 }
 
 model ActivityLog {
@@ -165,4 +185,7 @@ model ActivityLog {
   changes       String?  // JSON string array of diffs: [{ field, oldVal, newVal }]
   previousState String?  // Snapshot JSON for undo / rollback
   createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType])
 }

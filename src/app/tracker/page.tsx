@@ -156,11 +156,11 @@ function DroppableTrackerColumn({
 }
 
 export default function ContentTrackerPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [contentItems, setContentItems] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(true);
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
 
@@ -185,25 +185,37 @@ export default function ContentTrackerPage() {
     return closestCenter(args);
   };
 
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+    }
+  }, [cachedClients, clients.length]);
+
+  useEffect(() => {
+    if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
+      setUsers(cachedUsers);
+    }
+  }, [cachedUsers, users.length]);
+
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setClients(data);
+        if (Array.isArray(data) && data.length > 0) setClients(data);
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
     fetch('/api/users')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data) && data.length > 0) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
 
   const fetchTrackerData = () => {
-    setLoading(true);
+    if (contentItems.length === 0) setLoading(true);
 
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);

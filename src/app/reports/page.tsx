@@ -15,13 +15,19 @@ import {
 } from 'lucide-react';
 
 export default function ReportsPage() {
-  const { refreshTrigger } = useImpersonation();
-  const [clients, setClients] = useState<any[]>([]);
+  const { refreshTrigger, cachedClients } = useImpersonation();
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [selectedClientId, setSelectedClientId] = useState('all');
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [contentItems, setContentItems] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+    }
+  }, [cachedClients, clients.length]);
 
   useEffect(() => {
     fetch('/api/clients')

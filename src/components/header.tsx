@@ -22,6 +22,7 @@ import {
   X,
   User,
   Camera,
+  Menu,
 } from 'lucide-react';
 import { AuditHistoryModal } from '@/components/audit-history-modal';
 
@@ -36,6 +37,7 @@ export function Header() {
     setImpersonatedRole,
     openProfileModal,
     refreshTrigger,
+    toggleMobileMenu,
   } = useImpersonation();
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -125,9 +127,20 @@ export function Header() {
     searchResults.invoices.length;
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-card/90 backdrop-blur-md px-6">
+    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-border bg-card/90 backdrop-blur-md px-3 sm:px-6 gap-2 sm:gap-4">
+      {/* Mobile Hamburger Toggle Button */}
+      <button
+        type="button"
+        onClick={toggleMobileMenu}
+        className="p-2 -ml-1 rounded-lg text-foreground hover:bg-muted md:hidden cursor-pointer shrink-0 transition-colors"
+        title="Open Navigation Menu"
+        aria-label="Open Navigation Menu"
+      >
+        <Menu className="h-5 w-5 text-foreground" />
+      </button>
+
       {/* Global Search Bar */}
-      <div className="flex items-center gap-4 flex-1 max-w-md" ref={searchContainerRef}>
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-xs sm:max-w-md" ref={searchContainerRef}>
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -368,13 +381,14 @@ export function Header() {
           {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
         </button>
 
-        {/* Header "+ Quick Add" Trigger */}
+        {/* Header "+ Add" Trigger (Always visible and clear) */}
         <button
           onClick={() => openQuickAdd('content')}
-          className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs"
+          className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs shrink-0 cursor-pointer"
+          title="Add New Content Item or Task"
         >
           <Plus className="h-4 w-4 stroke-[3]" />
-          <span className="hidden sm:inline">Add</span>
+          <span className="font-bold">Add</span>
         </button>
 
         {/* User Avatar Menu */}

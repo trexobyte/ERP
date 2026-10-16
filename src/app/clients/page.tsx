@@ -20,12 +20,12 @@ import {
 } from 'lucide-react';
 
 export default function ClientsPage() {
-  const { effectiveRoleName, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { effectiveRoleName, refreshTrigger, triggerRefresh, cachedClients, cachedUsers } = useImpersonation();
   const isSuperAdmin = effectiveRoleName === 'Super Admin';
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [clientToDelete, setClientToDelete] = useState<any | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -74,6 +74,18 @@ export default function ClientsPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showAddModal, editingClient, selectedClient]);
+
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+    }
+  }, [cachedClients, clients.length]);
+
+  useEffect(() => {
+    if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
+      setUsers(cachedUsers);
+    }
+  }, [cachedUsers, users.length]);
 
   const fetchClients = () => {
     setClients((prev) => {
@@ -425,19 +437,20 @@ export default function ClientsPage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowAddModal(false);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-lg bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+          <div className="w-full max-w-lg bg-card border-2 border-border shadow-2xl rounded-xl p-5 sm:p-6 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-border pb-3 shrink-0">
               <h2 className="font-extrabold text-base tracking-tight text-foreground flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-[#FF3B00]" /> Add New Client Account
               </h2>
-              <button onClick={() => setShowAddModal(false)} className="p-1 rounded text-muted-foreground hover:bg-muted">
+              <button onClick={() => setShowAddModal(false)} className="p-1 rounded text-muted-foreground hover:bg-muted cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateClient} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateClient} className="flex-1 overflow-y-auto space-y-4 text-xs pr-1 flex flex-col">
+              <div className="space-y-4 flex-1">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Client Business Name *
@@ -557,18 +570,20 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 flex justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted"
+                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn"
+                  className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn cursor-pointer"
                 >
                   {submitting ? 'Creating...' : 'Create Account'}
                 </button>
@@ -586,20 +601,21 @@ export default function ClientsPage() {
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-lg bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+          <div className="w-full max-w-lg bg-card border-2 border-border shadow-2xl rounded-xl p-5 sm:p-6 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-border pb-3 shrink-0">
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <Edit2 className="h-5 w-5 text-[#FF3B00]" /> Edit Client Account
               </h2>
               <button
                 onClick={() => setEditingClient(null)}
-                className="p-1 rounded text-muted-foreground hover:bg-muted"
+                className="p-1 rounded text-muted-foreground hover:bg-muted cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveClientEdit} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveClientEdit} className="flex-1 overflow-y-auto space-y-4 text-xs pr-1 flex flex-col">
+              <div className="space-y-4 flex-1">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Client Name *
@@ -735,12 +751,14 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center pt-2 border-t border-border">
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 flex justify-between items-center shrink-0">
                 <button
                   type="button"
                   onClick={() => handleRequestDelete(editingClient)}
                   disabled={deletingClient}
-                  className="px-3 py-1.5 text-xs font-bold rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 flex items-center gap-1 transition-all"
+                  className="px-3 py-1.5 text-xs font-bold rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 flex items-center gap-1 transition-all cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Delete Client</span>
@@ -749,14 +767,14 @@ export default function ClientsPage() {
                   <button
                     type="button"
                     onClick={() => setEditingClient(null)}
-                    className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted"
+                    className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={savingEdit}
-                    className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn"
+                    className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn cursor-pointer"
                   >
                     {savingEdit ? 'Saving...' : 'Save Changes'}
                   </button>

@@ -30,9 +30,9 @@ import {
 } from 'recharts';
 
 export default function BillingPage() {
-  const { effectivePermissions, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { effectivePermissions, refreshTrigger, triggerRefresh, cachedClients } = useImpersonation();
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -72,21 +72,28 @@ export default function BillingPage() {
 
   const canAccessBilling = hasPermission(effectivePermissions, 'billing', 'view');
 
+  useEffect(() => {
+    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
+      setClients(cachedClients);
+      if (!clientId) setClientId(cachedClients[0].id);
+    }
+  }, [cachedClients, clients.length, clientId]);
+
   // Fetch clients for filter and invoice creation dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setClients(data);
-          if (data.length > 0 && !clientId) setClientId(data[0].id);
+          if (!clientId) setClientId(data[0].id);
         }
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
   }, [refreshTrigger]);
 
   const fetchBillingData = () => {
-    setLoading(true);
+    if (invoices.length === 0) setLoading(true);
 
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);
@@ -463,10 +470,10 @@ export default function BillingPage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowCreateModal(false);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-5 sm:p-6 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-border pb-3 shrink-0">
               <h2 className="font-extrabold text-sm text-foreground flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-[#FF3B00]" /> Generate New Client Invoice
               </h2>
@@ -475,7 +482,8 @@ export default function BillingPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateInvoice} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateInvoice} className="flex-1 overflow-y-auto space-y-4 text-xs pr-1 flex flex-col">
+              <div className="space-y-4 flex-1">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Client Account *
@@ -561,18 +569,20 @@ export default function BillingPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 flex justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted"
+                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn"
+                  className="px-5 py-2 font-bold rounded-md bg-[#FF3B00] text-white hover:bg-[#e03400] clicky-btn cursor-pointer"
                 >
                   {submitting ? 'Creating...' : 'Issue Invoice'}
                 </button>
@@ -588,19 +598,20 @@ export default function BillingPage() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedInvoice(null);
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200"
         >
-          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-border pb-3">
+          <div className="w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-xl p-5 sm:p-6 space-y-4 max-h-[92vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-border pb-3 shrink-0">
               <h2 className="font-extrabold text-sm text-foreground flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-emerald-500" /> Record Payment ({selectedInvoice.invoiceNumber})
               </h2>
-              <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded text-muted-foreground hover:bg-muted">
+              <button onClick={() => setSelectedInvoice(null)} className="p-1 rounded text-muted-foreground hover:bg-muted cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleRecordPayment} className="space-y-4 text-xs">
+            <form onSubmit={handleRecordPayment} className="flex-1 overflow-y-auto space-y-4 text-xs pr-1 flex flex-col">
+              <div className="space-y-4 flex-1">
               <div>
                 <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                   Amount Received (NPR) *
@@ -628,17 +639,19 @@ export default function BillingPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              </div>
+
+              <div className="sticky bottom-0 bg-card border-t border-border pt-3 pb-1 flex justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setSelectedInvoice(null)}
-                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted"
+                  className="px-4 py-2 font-semibold rounded-md border border-input hover:bg-muted cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold rounded-md bg-emerald-500 text-white hover:bg-emerald-600 clicky-btn"
+                  className="px-5 py-2 font-bold rounded-md bg-emerald-500 text-white hover:bg-emerald-600 clicky-btn cursor-pointer"
                 >
                   Confirm Payment
                 </button>
