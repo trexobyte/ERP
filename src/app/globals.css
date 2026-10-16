@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #fafafa;
+    --foreground: #09090b;
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --popover: #ffffff;
+    --popover-foreground: #09090b;
+    --primary: #ff3b00;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #18181b;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --accent: #ff3b00;
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    --border: #e4e4e7;
+    --input: #e4e4e7;
+    --ring: #ff3b00;
+    --radius: 0.375rem;
+  }
+
+  .dark {
+    --background: #09090b;
+    --foreground: #f4f4f5;
+    --card: #121215;
+    --card-foreground: #f4f4f5;
+    --popover: #121215;
+    --popover-foreground: #f4f4f5;
+    --primary: #ff3b00;
+    --primary-foreground: #ffffff;
+    --secondary: #1f1f23;
+    --secondary-foreground: #f4f4f5;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    --accent: #ff3b00;
+    --accent-foreground: #ffffff;
+    --destructive: #7f1d1d;
+    --destructive-foreground: #f4f4f5;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #ff3b00;
+  }
+}
+
+@theme {
+  --color-vermillion: #ff3b00;
+  --color-vermillion-hover: #e03400;
+  --color-vermillion-light: rgba(255, 59, 0, 0.15);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow-x: hidden;
+  letter-spacing: -0.01em;
+}
+
+/* Brutalist sharp hover & click active effects */
+.clicky-btn {
+  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.9);
+}
+
+.dark .clicky-btn {
+  box-shadow: 2px 2px 0px rgba(255, 59, 0, 0.4);
+}
+
+.clicky-btn:hover {
+  transform: translate(-1px, -1px);
+}
+
+.clicky-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px transparent;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}

@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String             @id @default(cuid())
+  name             String
+  email            String             @unique
+  password         String
+  department       String             // "Social Media", "Ads", "Content Production", "Client Servicing", "Management", "Billing"
+  avatar           String?
+  active           Boolean            @default(true)
+  dateJoined       DateTime           @default(now())
+  
+  roleId           String?
+  role             Role?              @relation(fields: [roleId], references: [id])
+  
+  assignedClients  ClientAssignment[]
+  contentItems     ContentItem[]      @relation("AssignedContent")
+  tasks            Task[]             @relation("AssignedTask")
+  createdTasks     Task[]             @relation("CreatedTask")
+  paymentsRecorded Payment[]
+  activityLogs     ActivityLog[]
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  isCustom    Boolean  @default(false)
+  permissions String   // JSON string of module permissions
+  users       User[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Client {
+  id              String             @id @default(cuid())
+  name            String
+  logo            String?
+  color           String             // Unique Hex Code (e.g., #FF3B00)
+  servicePackage  String             // e.g. "Full Stack Growth", "Social & Content"
+  packageTier     String             // "Basic", "Standard", "Premium", "Enterprise"
+  status          String             @default("ACTIVE") // "ACTIVE", "PROSPECT", "PAUSED", "CHURNED"
+  monthlyRetainer Float              // In NPR
+  startDate       DateTime
+  billingCycleDay Int                @default(1) // 1-31
+  deletedAt       DateTime?          // Soft delete timestamp for permanent persistence and restore capability
+
+  assignedTeam    ClientAssignment[]
+  contentItems    ContentItem[]
+  tasks           Task[]
+  invoices        Invoice[]
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model ClientAssignment {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, userId])
+}
+
+model ContentItem {
+  id                  String   @id @default(cuid())
+  clientId            String?
+  client              Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  isPersonal          Boolean  @default(false)
+  type                String   // "SHOOT", "REEL", "STATIC_POST", "CAROUSEL", "STORY", "AD_CREATIVE", "PERSONAL"
+  title               String
+  description         String?
+  platform            String?  // "INSTAGRAM", "FACEBOOK", "TIKTOK", "YOUTUBE", "LINKEDIN", "PERSONAL"
+  scheduledDate       DateTime
+  status              String   @default("PLANNED") // "PLANNED", "SHOT", "EDITED", "CLIENT_APPROVAL", "SCHEDULED", "PUBLISHED"
+  assigneeId          String?
+  assignee            User?    @relation("AssignedContent", fields: [assigneeId], references: [id])
+  clientFeedbackNotes String?
+  approvalOutcome     String?  // "APPROVED", "DECLINED", "REVISION_REQUESTED", or null
+  attachments         String?  // JSON string or URL
+  
+  tasks               Task[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  title         String
+  description   String?
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contentItemId String?
+  contentItem   ContentItem? @relation(fields: [contentItemId], references: [id], onDelete: SetNull)
+  assigneeId    String?
+  assignee      User?        @relation("AssignedTask", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdBy     User?        @relation("CreatedTask", fields: [createdById], references: [id], onDelete: SetNull)
+  dueDate       DateTime
+  urgency       String       @default("MEDIUM") // "URGENT", "HIGH", "MEDIUM", "LOW"
+  status        String       @default("TO_DO")  // "TO_DO", "IN_PROGRESS", "DONE"
+  completedDate DateTime?
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoiceNumber String    @unique
+  amount        Float     // In NPR
+  issueDate     DateTime
+  dueDate       DateTime
+  status        String    @default("DRAFT") // "DRAFT", "SENT", "PAID", "OVERDUE"
+  billingPeriod String    // e.g. "September 2026"
+  paymentNotes  String?
+  
+  payments      Payment[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amountReceived Float
+  paymentDate    DateTime
+  recordedById   String?
+  recordedBy     User?    @relation(fields: [recordedById], references: [id])
+  notes          String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ActivityLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String   // "CREATE", "UPDATE", "DELETE", "RESTORE", "UNDO"
+  entityType    String   // "ContentItem", "Task", "Invoice", "User", "Client"
+  entityId      String?
+  details       String   // Human-readable summary
+  changes       String?  // JSON string array of diffs: [{ field, oldVal, newVal }]
+  previousState String?  // Snapshot JSON for undo / rollback
+  createdAt     DateTime @default(now())
+}
