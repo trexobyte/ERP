@@ -16,13 +16,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Always fetch full list of non-deleted clients for dropdown options
-    const allClients = await prisma.client.findMany({
-      where: { deletedAt: null },
-      select: { id: true, name: true, color: true },
-      orderBy: { name: 'asc' },
-    });
-
     // Filters for content items
     const contentWhere: any = {};
     if (clientId) contentWhere.clientId = clientId;
@@ -40,19 +33,102 @@ export async function GET(req: Request) {
       taskWhere.assignee = { department };
     }
 
-    // 1. Fetch Clients matching client filter
+    // Filters for clients
     const clientWhere: any = { deletedAt: null };
     if (clientId) clientWhere.id = clientId;
 
-    const clients = await prisma.client.findMany({
-      where: clientWhere,
-      include: {
-        contentItems: {
-          where: contentWhere,
+    const invoiceWhere: any = {};
+    if (clientId) invoiceWhere.clientId = clientId;
+
+    // Run independent database queries in parallel
+    const [allClientsRaw, clients, allContent, teamMembers, invoices, urgentTasks] = await Promise.all([
+      // Only run a separate allClients query if filtering by a specific client; otherwise we can derive it from clients
+      clientId
+        ? prisma.client.findMany({
+            where: { deletedAt: null },
+            select: { id: true, name: true, color: true },
+            orderBy: { name: 'asc' },
+          })
+        : Promise.resolve(null),
+
+      // 1. Fetch Clients matching client filter with relevant content items
+      prisma.client.findMany({
+        where: clientWhere,
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          logo: true,
+          packageTier: true,
+          status: true,
+          monthlyRetainer: true,
+          contentItems: {
+            where: contentWhere,
+            select: {
+              status: true,
+            },
+          },
         },
-        invoices: true,
-      },
-    });
+        orderBy: { name: 'asc' },
+      }),
+
+      // 3. Status Breakdown & Weekly Output Data
+      prisma.contentItem.findMany({
+        where: contentWhere,
+        select: {
+          status: true,
+          scheduledDate: true,
+        },
+      }),
+
+      // 4. Team Members
+      prisma.user.findMany({
+        where: department ? { department } : {},
+        select: { id: true, name: true, department: true },
+      }),
+
+      // 6. Billing Snapshot
+      prisma.invoice.findMany({
+        where: invoiceWhere,
+        select: {
+          amount: true,
+          status: true,
+          payments: {
+            select: {
+              amountReceived: true,
+            },
+          },
+        },
+      }),
+
+      // 7. "Urgent right now" Widget
+      prisma.task.findMany({
+        where: {
+          ...taskWhere,
+          status: { not: 'DONE' },
+        },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          urgency: true,
+          status: true,
+          client: { select: { name: true, color: true } },
+          contentItem: { select: { title: true, type: true } },
+          assignee: { select: { name: true, avatar: true } },
+        },
+        orderBy: [{ dueDate: 'asc' }],
+        take: 50,
+      }),
+    ]);
+
+    const allClients =
+      allClientsRaw ||
+      clients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        color: c.color,
+      }));
 
     // 2. Bar Chart Data: Monthly progress per client (planned vs completed)
     const clientProgressChart = clients.map((c) => {
@@ -74,7 +150,6 @@ export async function GET(req: Request) {
     });
 
     // 3. Status Breakdown (Donut Chart)
-    const allContent = await prisma.contentItem.findMany({ where: contentWhere });
     const statusCounts = {
       PLANNED: 0,
       SHOT: 0,
@@ -98,12 +173,6 @@ export async function GET(req: Request) {
       { name: 'Scheduled', value: statusCounts.SCHEDULED, color: '#06B6D4' },
       { name: 'Published', value: statusCounts.PUBLISHED, color: '#10B981' },
     ];
-
-    // 4. Team Output Over Time (Line Chart)
-    const teamMembers = await prisma.user.findMany({
-      where: department ? { department } : {},
-      select: { id: true, name: true, department: true },
-    });
 
     // Dynamic weekly output based on content items
     const w1Done = allContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() <= 7).length;
@@ -153,14 +222,6 @@ export async function GET(req: Request) {
     });
 
     // 6. Billing Snapshot
-    const invoiceWhere: any = {};
-    if (clientId) invoiceWhere.clientId = clientId;
-
-    const invoices = await prisma.invoice.findMany({
-      where: invoiceWhere,
-      include: { payments: true, client: true },
-    });
-
     let totalRevenueExpected = 0;
     let totalRevenueCollected = 0;
     let outstandingAmount = 0;
@@ -188,19 +249,6 @@ export async function GET(req: Request) {
 
     // 7. "Urgent right now" Widget
     const currentDate = new Date();
-
-    const urgentTasks = await prisma.task.findMany({
-      where: {
-        ...taskWhere,
-        status: { not: 'DONE' },
-      },
-      include: {
-        client: { select: { name: true, color: true } },
-        contentItem: { select: { title: true, type: true } },
-        assignee: { select: { name: true, avatar: true } },
-      },
-      orderBy: [{ dueDate: 'asc' }],
-    });
 
     const sortedUrgentTasks = urgentTasks
       .map((t) => {

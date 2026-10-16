@@ -166,12 +166,16 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 2. Real-Time Sync Engine: sync when tab regains focus or visibility changes
+  // 2. Real-Time Sync Engine: sync when tab regains focus or visibility changes (throttled)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let lastSync = 0;
     const handleFocusOrVisibility = () => {
-      if (document.visibilityState === 'visible') {
+      const now = Date.now();
+      // Throttle focus/visibility refreshes to at most once every 15 seconds
+      if (document.visibilityState === 'visible' && now - lastSync > 15000) {
+        lastSync = now;
         setRefreshTrigger((prev) => prev + 1);
       }
     };

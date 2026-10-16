@@ -50,9 +50,6 @@ export function Header() {
   }>({ clients: [], content: [], tasks: [], invoices: [] });
   const [searching, setSearching] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
-
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const roleMenuRef = useRef<HTMLDivElement>(null);
@@ -71,31 +68,17 @@ export function Header() {
   const user = session?.user as any;
   const isSuperAdmin = user?.roleName === 'Super Admin' || user?.roleName === 'Manager';
 
-  // Synchronize avatar & name from session or DB
-  useEffect(() => {
-    fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const sessionUserId = (session?.user as any)?.id;
-          const sessionUserEmail = session?.user?.email;
-          const current =
-            data.find((u: any) => u.id === sessionUserId) ||
-            data.find((u: any) => u.email === sessionUserEmail) ||
-            data[0];
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(user?.avatar || null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(user?.name || null);
 
-          if (current) {
-            setCurrentAvatar(current.avatar || null);
-            setCurrentUserName(current.name || null);
-          }
-        }
-      })
-      .catch(() => {
-        const userAny = session?.user as any;
-        if (userAny?.avatar) setCurrentAvatar(userAny.avatar);
-        if (userAny?.name) setCurrentUserName(userAny.name);
-      });
-  }, [session, refreshTrigger]);
+  // Synchronize avatar & name from session
+  useEffect(() => {
+    const u = session?.user as any;
+    if (u) {
+      if (u.avatar) setCurrentAvatar(u.avatar);
+      if (u.name) setCurrentUserName(u.name);
+    }
+  }, [session]);
 
   // Search API fetch effect
   useEffect(() => {

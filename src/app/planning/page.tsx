@@ -368,7 +368,8 @@ export default function PlanningPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedItem]);
 
-  const fetchCalendarData = () => {
+  // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
+  useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
@@ -385,7 +386,9 @@ export default function PlanningPage() {
         if (Array.isArray(data)) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
+  }, [refreshTrigger]);
 
+  const fetchCalendarData = () => {
     const params = new URLSearchParams();
     if (selectedClientFilter) params.append('clientId', selectedClientFilter);
     if (myItemsOnly) params.append('myItemsOnly', 'true');

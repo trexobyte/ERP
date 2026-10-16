@@ -205,8 +205,8 @@ export default function TasksPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [promptContentItem]);
 
-  const fetchTasks = () => {
-    setLoading(true);
+  // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
+  useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
@@ -220,6 +220,10 @@ export default function TasksPage() {
         if (Array.isArray(data)) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
+  }, [refreshTrigger]);
+
+  const fetchTasks = () => {
+    setLoading(true);
 
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);

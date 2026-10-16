@@ -72,8 +72,8 @@ export default function BillingPage() {
 
   const canAccessBilling = hasPermission(effectivePermissions, 'billing', 'view');
 
-  const fetchBillingData = () => {
-    setLoading(true);
+  // Fetch clients for filter and invoice creation dropdowns only on mount or refreshTrigger
+  useEffect(() => {
     fetch('/api/clients')
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
@@ -83,6 +83,10 @@ export default function BillingPage() {
         }
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
+  }, [refreshTrigger]);
+
+  const fetchBillingData = () => {
+    setLoading(true);
 
     const params = new URLSearchParams();
     if (selectedClient) params.append('clientId', selectedClient);

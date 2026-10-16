@@ -27,29 +27,17 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { data: session } = useSession();
   const { effectivePermissions, effectiveRoleName, openProfileModal, refreshTrigger } = useImpersonation();
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
-  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const userAny = session?.user as any;
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAny?.avatar || null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(userAny?.name || null);
 
   useEffect(() => {
-    fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const sessionUserId = (session?.user as any)?.id;
-          const sessionUserEmail = session?.user?.email;
-          const current =
-            data.find((u: any) => u.id === sessionUserId) ||
-            data.find((u: any) => u.email === sessionUserEmail) ||
-            data[0];
-
-          if (current) {
-            setCurrentAvatar(current.avatar || null);
-            setCurrentUserName(current.name || null);
-          }
-        }
-      })
-      .catch(() => {});
-  }, [session, refreshTrigger]);
+    const u = session?.user as any;
+    if (u) {
+      if (u.avatar) setCurrentAvatar(u.avatar);
+      if (u.name) setCurrentUserName(u.name);
+    }
+  }, [session]);
 
   const navItems = [
     {
