@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const cacheKey = 'roles:all';
+    const cached = getCached<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
     }
 
     const roles = await prisma.role.findMany({
@@ -23,6 +30,7 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
 
+    setCached(cacheKey, roles, 60);
     return NextResponse.json(roles);
   } catch (error) {
     console.error('API Error GET /api/roles:', error);
@@ -70,6 +78,7 @@ export async function POST(req: Request) {
       });
     }
 
+    invalidateCache('roles');
     return NextResponse.json(role);
   } catch (error: any) {
     console.error('API Error POST /api/roles:', error);
@@ -100,6 +109,7 @@ export async function PUT(req: Request) {
       },
     });
 
+    invalidateCache('roles');
     return NextResponse.json(role);
   } catch (error: any) {
     console.error('API Error PUT /api/roles:', error);

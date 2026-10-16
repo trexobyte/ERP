@@ -34,6 +34,8 @@ interface ImpersonationContextType {
   setCachedInvoices: (data: any[]) => void;
   cachedDashboard: any;
   setCachedDashboard: (data: any) => void;
+  cachedRoles: any[];
+  setCachedRoles: (data: any[]) => void;
   refreshTrigger: number;
   triggerRefresh: () => void;
 }
@@ -67,6 +69,8 @@ const ImpersonationContext = createContext<ImpersonationContextType>({
   setCachedInvoices: () => {},
   cachedDashboard: null,
   setCachedDashboard: () => {},
+  cachedRoles: [],
+  setCachedRoles: () => {},
   refreshTrigger: 0,
   triggerRefresh: () => {},
 });
@@ -260,6 +264,7 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
   const [cachedContent, setCachedContentState] = useState<any[]>(() => getStored('content', []));
   const [cachedInvoices, setCachedInvoicesState] = useState<any[]>(() => getStored('invoices', []));
   const [cachedDashboard, setCachedDashboardState] = useState<any>(() => getStored('dashboard', null));
+  const [cachedRoles, setCachedRolesState] = useState<any[]>(() => getStored('roles', []));
 
   const setCachedClients = (data: any[]) => {
     setCachedClientsState(data);
@@ -284,6 +289,10 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
   const setCachedDashboard = (data: any) => {
     setCachedDashboardState(data);
     setStored('dashboard', data);
+  };
+  const setCachedRoles = (data: any[]) => {
+    setCachedRolesState(data);
+    setStored('roles', data);
   };
 
   // Prefetch and sync all core datasets once when session is ready, and on refreshTrigger
@@ -331,6 +340,13 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
         if (data) setCachedDashboard(data);
       })
       .catch((err) => console.error('Failed to prefetch dashboard:', err));
+
+    fetch('/api/roles')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) setCachedRoles(data);
+      })
+      .catch((err) => console.error('Failed to prefetch roles:', err));
   }, [session, refreshTrigger]);
 
   const toggleMobileMenu = () => setMobileMenuOpen((prev) => !prev);
@@ -379,6 +395,8 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
         setCachedInvoices,
         cachedDashboard,
         setCachedDashboard,
+        cachedRoles,
+        setCachedRoles,
         refreshTrigger,
         triggerRefresh,
       }}

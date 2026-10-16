@@ -22,6 +22,17 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
+const DEFAULT_ROLES = [
+  { id: 'cmvazs0c80002gl4dv8kvxcx6', name: 'Social Media Manager' },
+  { id: 'cmvazs0m40003gl4deum3zr8z', name: 'Content/Shoot Manager' },
+  { id: 'cmvazs0w20004gl4d1bs4easv', name: 'Ads Manager' },
+  { id: 'cmvazs1620005gl4d9pe546ll', name: 'Client Communication' },
+  { id: 'cmvazs1g20006gl4dqvrjkxyv', name: 'Billing/Finance' },
+  { id: 'cmvazs02c0001gl4dknelyket', name: 'Manager' },
+  { id: 'cmvazrzs00000gl4d7n6hk7t4', name: 'Super Admin' },
+  { id: 'cmvazs1q10007gl4d0dwmsz00', name: 'Lead Creator & Videographer' },
+];
+
 export default function UsersPage() {
   const { data: session } = useSession();
   const {
@@ -33,9 +44,11 @@ export default function UsersPage() {
     cachedClients,
     cachedUsers,
     setCachedUsers,
+    cachedRoles,
+    setCachedRoles,
   } = useImpersonation();
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>(() => (cachedRoles && cachedRoles.length > 0 ? cachedRoles : DEFAULT_ROLES));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [loading, setLoading] = useState(() => !cachedUsers || cachedUsers.length === 0);
 
@@ -52,7 +65,7 @@ export default function UsersPage() {
   const [userEmail, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('password123');
   const [userDepartment, setUserDepartment] = useState('Social Media');
-  const [userRoleId, setUserRoleId] = useState('');
+  const [userRoleId, setUserRoleId] = useState(() => (cachedRoles && cachedRoles.length > 0 ? cachedRoles[0].id : DEFAULT_ROLES[0].id));
   const [userAssignedClients, setUserAssignedClients] = useState<string[]>([]);
   const [submittingUser, setSubmittingUser] = useState(false);
 
@@ -113,6 +126,15 @@ export default function UsersPage() {
     }
   }, [cachedUsers, users.length]);
 
+  useEffect(() => {
+    if (cachedRoles && cachedRoles.length > 0) {
+      setRoles(cachedRoles);
+      if (!userRoleId) {
+        setUserRoleId(cachedRoles[0].id);
+      }
+    }
+  }, [cachedRoles, userRoleId]);
+
   const fetchUsersAndRoles = async () => {
     if (users.length === 0) setLoading(true);
     try {
@@ -134,9 +156,10 @@ export default function UsersPage() {
 
       if (rolesRes.ok) {
         const data = await rolesRes.json();
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setRoles(data);
-          if (data.length > 0 && !userRoleId) {
+          setCachedRoles(data);
+          if (!userRoleId) {
             setUserRoleId(data[0].id);
           }
         }
@@ -294,7 +317,8 @@ export default function UsersPage() {
     setSubmittingUser(true);
 
     try {
-      const selectedRoleId = userRoleId || (roles.length > 0 ? roles[0].id : '');
+      const activeRoles = roles.length > 0 ? roles : DEFAULT_ROLES;
+      const selectedRoleId = userRoleId || activeRoles[0].id;
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -542,8 +566,14 @@ export default function UsersPage() {
             </select>
 
             <button
-              onClick={() => setShowAddUserModal(true)}
-              className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] clicky-btn"
+              onClick={() => {
+                const activeRoles = roles.length > 0 ? roles : DEFAULT_ROLES;
+                if (!userRoleId || !activeRoles.some((r) => r.id === userRoleId)) {
+                  setUserRoleId(activeRoles[0].id);
+                }
+                setShowAddUserModal(true);
+              }}
+              className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] clicky-btn cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[3]" /> Add User
             </button>
@@ -820,20 +850,16 @@ export default function UsersPage() {
                     Assigned Role *
                   </label>
                   <select
-                    value={userRoleId || (roles.length > 0 ? roles[0].id : '')}
+                    value={userRoleId || (roles.length > 0 ? roles[0].id : DEFAULT_ROLES[0].id)}
                     onChange={(e) => setUserRoleId(e.target.value)}
                     required
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                   >
-                    {roles.length === 0 ? (
-                      <option value="">No roles available</option>
-                    ) : (
-                      roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))
-                    )}
+                    {(roles.length > 0 ? roles : DEFAULT_ROLES).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
