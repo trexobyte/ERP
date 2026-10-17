@@ -63,43 +63,43 @@ function SortableTrackerCard({ item }: { item: any }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`rounded-lg border border-border bg-card p-3 shadow-xs hover:border-[#FF3B00] transition-all cursor-grab active:cursor-grabbing space-y-2 group select-none ${
+      className={`rounded-lg border border-border bg-card p-2 sm:p-2.5 shadow-2xs hover:border-[#FF3B00] transition-all cursor-grab active:cursor-grabbing space-y-1.5 group select-none min-w-0 ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] z-30 shadow-xl' : 'opacity-100'
       }`}
     >
       {/* Top Tag Row: Client Name on Left, Post Format on Right */}
-      <div className="flex items-center justify-between gap-1.5 pointer-events-none min-w-0">
+      <div className="flex items-center justify-between gap-1 pointer-events-none min-w-0">
         <span
-          className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase truncate max-w-[130px] shrink min-w-0 shadow-2xs"
+          className="px-1.5 py-0.5 rounded text-[8.5px] font-black text-white uppercase truncate max-w-[95px] lg:max-w-[110px] shrink min-w-0 shadow-2xs leading-none"
           style={{ backgroundColor: item.client?.color || '#FF3B00' }}
           title={item.client?.name || 'Client'}
         >
           {item.client?.name || 'Client'}
         </span>
-        <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1.5 py-0.5 rounded bg-muted/80 border border-border/40">
+        <span className="text-[7.5px] lg:text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80 border border-border/40 leading-none">
           {formattedType}
         </span>
       </div>
 
       {/* Card Title & Drag Icon */}
-      <div className="flex items-start gap-1.5 pointer-events-none min-w-0">
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 mt-0.5" />
-        <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0">
+      <div className="flex items-start gap-1 pointer-events-none min-w-0">
+        <GripVertical className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 mt-0.5" />
+        <h4 className="font-bold text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0">
           {item.title}
         </h4>
       </div>
 
       {/* Approval Status Badge */}
       {item.approvalOutcome && (
-        <div className="flex items-center gap-1 text-[10px] font-bold pointer-events-none">
+        <div className="flex items-center gap-1 text-[8.5px] font-bold pointer-events-none">
           {item.approvalOutcome === 'APPROVED' && (
-            <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3 shrink-0" /> Approved
+            <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 leading-none">
+              <CheckCircle2 className="h-2.5 w-2.5 shrink-0" /> Approved
             </span>
           )}
           {item.approvalOutcome === 'REVISION_REQUESTED' && (
-            <span className="text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 shrink-0" /> Revision
+            <span className="text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 leading-none">
+              <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> Revision
             </span>
           )}
         </div>
@@ -107,18 +107,18 @@ function SortableTrackerCard({ item }: { item: any }) {
 
       {/* Client Feedback Note */}
       {item.clientFeedbackNotes && (
-        <p className="text-[10px] text-muted-foreground bg-muted/60 border border-border/40 p-1.5 rounded italic line-clamp-2 pointer-events-none break-words">
+        <p className="text-[8.5px] text-muted-foreground bg-muted/60 border border-border/40 p-1 rounded italic line-clamp-2 pointer-events-none break-words leading-tight">
           "{item.clientFeedbackNotes}"
         </p>
       )}
 
       {/* Footer: Date & Assignee */}
-      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none gap-1.5 min-w-0">
+      <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground font-mono pointer-events-none gap-1 min-w-0">
         <span className="truncate">
           {item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : 'Unscheduled'}
         </span>
         {item.assignee && (
-          <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1.5 py-0.5 rounded text-[10px]">
+          <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[8.5px] truncate max-w-[65px]">
             {item.assignee.name ? item.assignee.name.split(' ')[0] : 'Team'}
           </span>
         )}
@@ -146,24 +146,24 @@ function DroppableTrackerColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border transition-all p-3 sm:p-3.5 min-h-[480px] ${
+      className={`flex flex-col rounded-xl border transition-all p-2 sm:p-2.5 min-h-[480px] min-w-0 ${
         isOver
           ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md'
           : 'border-border bg-card/70'
       }`}
     >
-      <div className="flex items-center justify-between pb-2 mb-3 border-b border-border">
-        <span className="font-extrabold text-xs tracking-tight text-foreground flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+      <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-border min-w-0">
+        <span className="font-extrabold text-[11px] lg:text-xs tracking-tight text-foreground flex items-center gap-1.5 min-w-0">
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
           <span className="truncate">{col.label}</span>
         </span>
-        <span className="text-[10px] font-mono font-bold bg-muted px-2 py-0.5 rounded text-muted-foreground shrink-0">
+        <span className="text-[9.5px] font-mono font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
           {count}
         </span>
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2.5 flex-1">{children}</div>
+        <div className="space-y-2 flex-1 min-w-0">{children}</div>
       </SortableContext>
     </div>
   );
@@ -574,7 +574,7 @@ export default function ContentTrackerPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x">
+          <div className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-2 lg:gap-2.5">
             {columns
               .filter((col) => mobileStageFilter === 'ALL' || mobileStageFilter === col.id)
               .map((col) => {
@@ -582,7 +582,7 @@ export default function ContentTrackerPage() {
                 return (
                   <div
                     key={col.id}
-                    className="w-[85vw] sm:w-[285px] min-w-[85vw] sm:min-w-[285px] max-w-[85vw] sm:max-w-[285px] shrink-0 snap-start"
+                    className="w-[85vw] min-w-[85vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
                   >
                     <DroppableTrackerColumn
                       col={col}
@@ -593,8 +593,8 @@ export default function ContentTrackerPage() {
                         <SortableTrackerCard key={item.id} item={item} />
                       ))}
                       {colItems.length === 0 && (
-                        <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
-                          <p className="text-[11px] font-semibold text-muted-foreground/60">
+                        <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border/60 p-2 text-center">
+                          <p className="text-[10px] font-semibold text-muted-foreground/60">
                             Drop items here
                           </p>
                         </div>
@@ -607,23 +607,23 @@ export default function ContentTrackerPage() {
 
           <DragOverlay>
             {activeDragItem ? (
-              <div className="rounded-lg border border-[#FF3B00] bg-card p-3 shadow-2xl opacity-95 rotate-2 scale-105 space-y-2 pointer-events-none w-[280px]">
-                <div className="flex items-center justify-between gap-1.5 min-w-0">
+              <div className="rounded-lg border border-[#FF3B00] bg-card p-2.5 shadow-2xl opacity-95 rotate-2 scale-105 space-y-1.5 pointer-events-none w-[185px]">
+                <div className="flex items-center justify-between gap-1 min-w-0">
                   <span
-                    className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase truncate max-w-[130px]"
+                    className="px-1.5 py-0.5 rounded text-[8.5px] font-black text-white uppercase truncate max-w-[100px]"
                     style={{ backgroundColor: activeDragItem.client?.color || '#FF3B00' }}
                   >
                     {activeDragItem.client?.name || 'Client'}
                   </span>
-                  <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1.5 py-0.5 rounded bg-muted/80">
+                  <span className="text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80">
                     {activeDragItem.type?.replace(/_/g, ' ')}
                   </span>
                 </div>
-                <h4 className="font-bold text-xs text-foreground leading-snug line-clamp-2">{activeDragItem.title}</h4>
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                <h4 className="font-bold text-[11px] text-foreground leading-snug line-clamp-2">{activeDragItem.title}</h4>
+                <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground font-mono">
                   <span>{activeDragItem.scheduledDate ? new Date(activeDragItem.scheduledDate).toLocaleDateString() : 'Unscheduled'}</span>
                   {activeDragItem.assignee && (
-                    <span className="font-semibold text-foreground">{activeDragItem.assignee.name.split(' ')[0]}</span>
+                    <span className="font-semibold text-foreground text-[8.5px]">{activeDragItem.assignee.name.split(' ')[0]}</span>
                   )}
                 </div>
               </div>
