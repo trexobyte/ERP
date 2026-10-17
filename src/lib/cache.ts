@@ -25,6 +25,10 @@ export function getCached<T>(key: string): T | null {
 }
 
 export function setCached<T>(key: string, data: T, ttlSeconds: number = 30): void {
+  if (Array.isArray(data) && data.length === 0) {
+    // Never cache empty results - allows immediate retry on next request
+    return;
+  }
   cache.set(key, {
     data,
     expiresAt: Date.now() + ttlSeconds * 1000,

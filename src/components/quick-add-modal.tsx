@@ -86,9 +86,9 @@ export function QuickAddModal() {
         .catch((err) => console.error('Failed to fetch clients:', err));
 
       fetch('/api/users')
-        .then((res) => (res.ok ? res.json() : []))
+        .then(async (res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (Array.isArray(data)) setUsers(data);
+          if (Array.isArray(data) && data.length > 0) setUsers(data);
         })
         .catch((err) => console.error('Failed to fetch users:', err));
     }

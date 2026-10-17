@@ -20,43 +20,86 @@ export async function GET() {
       return NextResponse.json(cached);
     }
 
-    const clients = await prisma.client.findMany({
-      where: {
-        deletedAt: null,
-      },
-      include: {
-        assignedTeam: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-                department: true,
+    let clients;
+    try {
+      clients = await prisma.client.findMany({
+        where: {
+          deletedAt: null,
+        },
+        include: {
+          assignedTeam: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                  department: true,
+                },
               },
             },
           },
-        },
-        contentItems: {
-          select: {
-            id: true,
-            status: true,
+          contentItems: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+          invoices: {
+            select: {
+              id: true,
+              amount: true,
+              status: true,
+            },
           },
         },
-        invoices: {
-          select: {
-            id: true,
-            amount: true,
-            status: true,
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    } catch (dbErr) {
+      console.warn('First attempt failed, retrying clients query in 250ms...', dbErr);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      clients = await prisma.client.findMany({
+        where: {
+          deletedAt: null,
+        },
+        include: {
+          assignedTeam: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                  department: true,
+                },
+              },
+            },
+          },
+          contentItems: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+          invoices: {
+            select: {
+              id: true,
+              amount: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      });
+    }
 
-    setCached(cacheKey, clients, 30);
+    if (Array.isArray(clients) && clients.length > 0) {
+      setCached(cacheKey, clients, 30);
+    }
     return NextResponse.json(clients);
   } catch (error) {
     console.error('API Error /api/clients:', error);

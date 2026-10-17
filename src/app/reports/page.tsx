@@ -31,9 +31,9 @@ export default function ReportsPage() {
 
   useEffect(() => {
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setClients(data);
         }
       })
@@ -49,16 +49,16 @@ export default function ReportsPage() {
     const invoicesUrl = selectedClientId === 'all' || !selectedClientId ? '/api/invoices' : `/api/invoices?clientId=${selectedClientId}`;
 
     fetch(contentUrl)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) setContentItems(data);
+        if (Array.isArray(data) && (data.length > 0 || selectedClientId !== 'all')) setContentItems(data);
       })
       .catch((err) => console.error('Failed to fetch content:', err));
 
     fetch(invoicesUrl)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) setInvoices(data);
+        if (Array.isArray(data) && (data.length > 0 || selectedClientId !== 'all')) setInvoices(data);
         setLoading(false);
       })
       .catch((err) => {

@@ -82,7 +82,7 @@ export default function BillingPage() {
   // Fetch clients for filter and invoice creation dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setClients(data);
@@ -107,12 +107,21 @@ export default function BillingPage() {
     if (selectedStatus) params.append('status', selectedStatus);
 
     fetch(`/api/invoices?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn('/api/invoices returned non-ok status:', res.status);
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
-          setInvoices(data);
-          if (!selectedClient && !selectedStatus) {
-            setCachedInvoices(data);
+          const hasFilters = Boolean(selectedClient || selectedStatus);
+          if (data.length > 0 || hasFilters) {
+            setInvoices(data);
+            if (!hasFilters) {
+              setCachedInvoices(data);
+            }
           }
         }
         setLoading(false);

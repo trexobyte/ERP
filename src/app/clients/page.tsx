@@ -22,7 +22,16 @@ import {
 export default function ClientsPage() {
   const { effectiveRoleName, refreshTrigger, triggerRefresh, cachedClients, setCachedClients, cachedUsers, setCachedUsers } = useImpersonation();
   const isSuperAdmin = effectiveRoleName === 'Super Admin';
-  const [clients, setClients] = useState<any[]>(cachedClients || []);
+  const [clients, setClients] = useState<any[]>(() => {
+    if (cachedClients && cachedClients.length > 0) return cachedClients;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('trexo_cache_clients');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [clientToDelete, setClientToDelete] = useState<any | null>(null);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
@@ -76,10 +85,10 @@ export default function ClientsPage() {
   }, [showAddModal, editingClient, selectedClient]);
 
   useEffect(() => {
-    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
-      setClients(cachedClients);
+    if (cachedClients && cachedClients.length > 0) {
+      setClients((prev) => (prev.length === 0 ? cachedClients : prev));
     }
-  }, [cachedClients, clients.length]);
+  }, [cachedClients]);
 
   useEffect(() => {
     if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
@@ -87,29 +96,48 @@ export default function ClientsPage() {
     }
   }, [cachedUsers, users.length]);
 
-  const fetchClients = () => {
-    setClients((prev) => {
-      if (prev.length === 0) setLoading(true);
-      return prev;
-    });
+  const fetchClients = (retryCount = 0) => {
     fetch('/api/clients', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn('/api/clients returned non-ok status:', res.status);
+          if (retryCount < 2) {
+            setTimeout(() => fetchClients(retryCount + 1), 600);
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
-          setClients(data);
-          setCachedClients(data);
+          if (data.length > 0) {
+            setClients(data);
+            setCachedClients(data);
+            if (typeof window !== 'undefined') {
+              try {
+                sessionStorage.setItem('trexo_cache_clients', JSON.stringify(data));
+              } catch {}
+            }
+          } else if (clients.length === 0 && retryCount < 2) {
+            // If empty on first attempt, retry once after a short delay
+            setTimeout(() => fetchClients(retryCount + 1), 600);
+          }
         }
         setLoading(false);
       })
       .catch((err) => {
         console.error('Failed to fetch clients:', err);
-        setLoading(false);
+        if (retryCount < 2) {
+          setTimeout(() => fetchClients(retryCount + 1), 600);
+        } else {
+          setLoading(false);
+        }
       });
 
     fetch('/api/users', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setUsers(data);
           setCachedUsers(data);
         }
@@ -282,8 +310,10 @@ export default function ClientsPage() {
   };
 
   const filteredClients = clients.filter((c) => {
+    if (!c || !c.id) return false;
     if (deletedIds.includes(c.id)) return false;
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    const clientName = typeof c.name === 'string' ? c.name.toLowerCase() : '';
+    const matchesSearch = clientName.includes(search.toLowerCase());
     const matchesStatus = !statusFilter || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -291,26 +321,26 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Action Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
             CLIENT ACCOUNTS <Building2 className="h-5 w-5 text-[#FF3B00]" />
           </h1>
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-[11px] sm:text-xs text-muted-foreground font-mono mt-0.5">
             Active Retainers, Assigned Team Leads, Comms Log & Account Performance
           </p>
         </div>
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn"
+          className="flex items-center justify-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn w-full sm:w-auto shrink-0 shadow-xs"
         >
           <Plus className="h-4 w-4 stroke-[3]" /> Add Client Account
         </button>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-card p-3 rounded-xl border border-border">
+      <div className="flex flex-col sm:flex-row gap-2.5 bg-card p-2.5 sm:p-3 rounded-xl border border-border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -318,14 +348,14 @@ export default function ClientsPage() {
             placeholder="Search by client name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-md border border-input bg-background pl-9 pr-4 py-1.5 text-xs outline-hidden focus:border-[#FF3B00]"
+            className="w-full rounded-md border border-input bg-background pl-9 pr-4 py-2 sm:py-1.5 text-xs outline-hidden focus:border-[#FF3B00]"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
+          className="rounded-md border border-input bg-background px-3 py-2 sm:py-1.5 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
         >
           <option value="">All Statuses</option>
           <option value="ACTIVE">Active Clients</option>
@@ -338,8 +368,16 @@ export default function ClientsPage() {
       {/* Client Cards Grid */}
       {loading && clients.length === 0 ? (
         <div className="py-20 text-center text-xs font-mono text-muted-foreground">Loading Client Roster...</div>
+      ) : filteredClients.length === 0 ? (
+        <div className="py-16 text-center rounded-xl border border-dashed border-border bg-card/40 p-8 space-y-3">
+          <Building2 className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+          <h3 className="text-sm font-bold text-foreground">No Client Accounts Found</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            {search || statusFilter ? 'No clients match your filter criteria.' : 'No client accounts have been created yet.'}
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {filteredClients.map((client) => (
             <div
               key={client.id}
@@ -351,15 +389,15 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-3">
                     <div
                       className="h-10 w-10 rounded-xl flex items-center justify-center font-black text-white text-base shadow-sm group-hover:scale-105 transition-transform"
-                      style={{ backgroundColor: client.color }}
+                      style={{ backgroundColor: client.color || '#FF3B00' }}
                     >
-                      {client.name.slice(0, 2).toUpperCase()}
+                      {(client.name || 'CL').slice(0, 2).toUpperCase()}
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-foreground line-clamp-1 group-hover:text-[#FF3B00] transition-colors">
                         {client.name}
                       </h3>
-                      <span className="text-[10px] font-mono text-muted-foreground">{client.servicePackage}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{client.servicePackage || 'Retainer'}</span>
                     </div>
                   </div>
 
@@ -372,7 +410,7 @@ export default function ClientsPage() {
                         : 'bg-zinc-700/20 text-zinc-400'
                     }`}
                   >
-                    {client.status}
+                    {client.status || 'ACTIVE'}
                   </span>
                 </div>
 
@@ -380,12 +418,12 @@ export default function ClientsPage() {
                   <div>
                     <span className="text-muted-foreground text-[10px] block">Retainer (NPR):</span>
                     <span className="font-bold text-foreground">
-                      {isSuperAdmin ? `NPR ${client.monthlyRetainer.toLocaleString()}` : '••••••'}
+                      {isSuperAdmin ? `NPR ${(Number(client.monthlyRetainer) || 0).toLocaleString()}` : '••••••'}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-[10px] block">Package Tier:</span>
-                    <span className="font-bold text-[#FF3B00]">{client.packageTier}</span>
+                    <span className="font-bold text-[#FF3B00]">{client.packageTier || 'Standard'}</span>
                   </div>
                 </div>
 

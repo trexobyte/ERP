@@ -55,6 +55,8 @@ function SortableTrackerCard({ item }: { item: any }) {
     transition,
   };
 
+  const formattedType = item.type ? item.type.replace(/_/g, ' ') : '';
+
   return (
     <div
       ref={setNodeRef}
@@ -65,48 +67,60 @@ function SortableTrackerCard({ item }: { item: any }) {
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] z-30 shadow-xl' : 'opacity-100'
       }`}
     >
-      <div className="flex items-center justify-between pointer-events-none">
+      {/* Top Tag Row: Client Name on Left, Post Format on Right */}
+      <div className="flex items-center justify-between gap-1.5 pointer-events-none min-w-0">
         <span
-          className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase"
+          className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase truncate max-w-[130px] shrink min-w-0 shadow-2xs"
           style={{ backgroundColor: item.client?.color || '#FF3B00' }}
+          title={item.client?.name || 'Client'}
         >
-          {item.client?.name}
+          {item.client?.name || 'Client'}
         </span>
-        <span className="text-[9px] font-mono text-muted-foreground uppercase">{item.type}</span>
+        <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1.5 py-0.5 rounded bg-muted/80 border border-border/40">
+          {formattedType}
+        </span>
       </div>
 
-      <div className="flex items-start gap-1.5 pointer-events-none">
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 shrink-0 mt-0.5" />
-        <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors leading-tight">
+      {/* Card Title & Drag Icon */}
+      <div className="flex items-start gap-1.5 pointer-events-none min-w-0">
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 mt-0.5" />
+        <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0">
           {item.title}
         </h4>
       </div>
 
+      {/* Approval Status Badge */}
       {item.approvalOutcome && (
         <div className="flex items-center gap-1 text-[10px] font-bold pointer-events-none">
           {item.approvalOutcome === 'APPROVED' && (
-            <span className="text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Approved
+            <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3 shrink-0" /> Approved
             </span>
           )}
           {item.approvalOutcome === 'REVISION_REQUESTED' && (
-            <span className="text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" /> Revision
+            <span className="text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 shrink-0" /> Revision
             </span>
           )}
         </div>
       )}
 
+      {/* Client Feedback Note */}
       {item.clientFeedbackNotes && (
-        <p className="text-[10px] text-muted-foreground bg-muted p-1.5 rounded italic line-clamp-2 pointer-events-none">
+        <p className="text-[10px] text-muted-foreground bg-muted/60 border border-border/40 p-1.5 rounded italic line-clamp-2 pointer-events-none break-words">
           "{item.clientFeedbackNotes}"
         </p>
       )}
 
-      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none">
-        <span>{item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : 'Unscheduled'}</span>
+      {/* Footer: Date & Assignee */}
+      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none gap-1.5 min-w-0">
+        <span className="truncate">
+          {item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : 'Unscheduled'}
+        </span>
         {item.assignee && (
-          <span className="font-semibold text-foreground">{item.assignee.name.split(' ')[0]}</span>
+          <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1.5 py-0.5 rounded text-[10px]">
+            {item.assignee.name ? item.assignee.name.split(' ')[0] : 'Team'}
+          </span>
         )}
       </div>
     </div>
@@ -132,24 +146,24 @@ function DroppableTrackerColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border transition-all p-3 min-h-[520px] ${
+      className={`flex flex-col rounded-xl border transition-all p-3 sm:p-3.5 min-h-[480px] ${
         isOver
           ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md'
-          : 'border-border bg-card/60'
+          : 'border-border bg-card/70'
       }`}
     >
       <div className="flex items-center justify-between pb-2 mb-3 border-b border-border">
-        <span className="font-extrabold text-xs tracking-tight text-foreground flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.color }} />
-          {col.label}
+        <span className="font-extrabold text-xs tracking-tight text-foreground flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+          <span className="truncate">{col.label}</span>
         </span>
-        <span className="text-[10px] font-mono font-bold bg-muted px-2 py-0.5 rounded text-muted-foreground">
+        <span className="text-[10px] font-mono font-bold bg-muted px-2 py-0.5 rounded text-muted-foreground shrink-0">
           {count}
         </span>
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-3 flex-1">{children}</div>
+        <div className="space-y-2.5 flex-1">{children}</div>
       </SortableContext>
     </div>
   );
@@ -158,7 +172,16 @@ function DroppableTrackerColumn({
 export default function ContentTrackerPage() {
   const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedContent, setCachedContent } = useImpersonation();
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
-  const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
+  const [contentItems, setContentItems] = useState<any[]>(() => {
+    if (cachedContent && cachedContent.length > 0) return cachedContent;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('trexo_cache_content');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(() => !cachedContent || cachedContent.length === 0);
@@ -168,13 +191,13 @@ export default function ContentTrackerPage() {
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [approvalFilter, setApprovalFilter] = useState('');
+  const [mobileStageFilter, setMobileStageFilter] = useState('ALL');
 
-  // Drag & drop sensors with low threshold for smooth dragging
+  // Drag & drop sensors with 8px threshold to prevent accidental dragging on mobile scroll
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 4,
+        distance: 8,
       },
     })
   );
@@ -186,10 +209,10 @@ export default function ContentTrackerPage() {
   };
 
   useEffect(() => {
-    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
-      setClients(cachedClients);
+    if (cachedClients && cachedClients.length > 0) {
+      setClients((prev) => (prev.length === 0 ? cachedClients : prev));
     }
-  }, [cachedClients, clients.length]);
+  }, [cachedClients]);
 
   useEffect(() => {
     if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
@@ -198,30 +221,30 @@ export default function ContentTrackerPage() {
   }, [cachedUsers, users.length]);
 
   useEffect(() => {
-    if (cachedContent && cachedContent.length > 0 && contentItems.length === 0 && !selectedClient && !selectedType && !selectedStatus) {
-      setContentItems(cachedContent);
+    if (cachedContent && cachedContent.length > 0) {
+      setContentItems((prev) => (prev.length === 0 ? cachedContent : prev));
       setLoading(false);
     }
-  }, [cachedContent, contentItems.length, selectedClient, selectedType, selectedStatus]);
+  }, [cachedContent]);
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setClients(data);
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
     fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
 
-  const fetchTrackerData = () => {
+  const fetchTrackerData = (retryCount = 0) => {
     if (contentItems.length === 0) setLoading(true);
 
     const params = new URLSearchParams();
@@ -230,34 +253,57 @@ export default function ContentTrackerPage() {
     if (selectedStatus) params.append('status', selectedStatus);
 
     fetch(`/api/content?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn('/api/content returned non-ok status:', res.status);
+          if (retryCount < 2) {
+            setTimeout(() => fetchTrackerData(retryCount + 1), 600);
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
-          let savedOrder: string[] = [];
-          if (typeof window !== 'undefined') {
-            try {
-              const raw = localStorage.getItem('tracker_kanban_order');
-              if (raw) savedOrder = JSON.parse(raw);
-            } catch {}
-          }
-          if (savedOrder.length > 0) {
-            const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
-            data.sort((a, b) => {
-              const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
-              const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
-              return idxA - idxB;
-            });
-          }
-          setContentItems(data);
-          if (!selectedClient && !selectedType && !selectedStatus) {
-            setCachedContent(data);
+          const hasFilters = Boolean(selectedClient || selectedType || selectedStatus);
+          if (data.length > 0 || hasFilters) {
+            let savedOrder: string[] = [];
+            if (typeof window !== 'undefined') {
+              try {
+                const raw = localStorage.getItem('tracker_kanban_order');
+                if (raw) savedOrder = JSON.parse(raw);
+              } catch {}
+            }
+            if (savedOrder.length > 0) {
+              const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+              data.sort((a, b) => {
+                const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
+                const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
+                return idxA - idxB;
+              });
+            }
+            setContentItems(data);
+            if (!hasFilters) {
+              setCachedContent(data);
+              if (typeof window !== 'undefined') {
+                try {
+                  sessionStorage.setItem('trexo_cache_content', JSON.stringify(data));
+                } catch {}
+              }
+            }
+          } else if (contentItems.length === 0 && retryCount < 2) {
+            setTimeout(() => fetchTrackerData(retryCount + 1), 600);
           }
         }
         setLoading(false);
       })
       .catch((err) => {
         console.error('Failed to fetch content:', err);
-        setLoading(false);
+        if (retryCount < 2) {
+          setTimeout(() => fetchTrackerData(retryCount + 1), 600);
+        } else {
+          setLoading(false);
+        }
       });
   };
 
@@ -396,14 +442,14 @@ export default function ContentTrackerPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* Header & Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
             CONTENT TRACKER <Kanban className="h-5 w-5 text-[#FF3B00]" />
           </h1>
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-[11px] sm:text-xs text-muted-foreground font-mono mt-0.5">
             Pipeline Kanban Board & Comprehensive Deliverable Data Matrix
           </p>
         </div>
@@ -413,37 +459,36 @@ export default function ContentTrackerPage() {
           <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                 viewMode === 'kanban'
                   ? 'bg-[#FF3B00] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Kanban className="h-4 w-4" /> Kanban Board
+              <Kanban className="h-4 w-4" /> <span className="hidden xs:inline">Kanban</span>
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                 viewMode === 'table'
                   ? 'bg-[#FF3B00] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <TableIcon className="h-4 w-4" /> Table View
+              <TableIcon className="h-4 w-4" /> <span className="hidden xs:inline">Table</span>
             </button>
           </div>
 
           <button
             onClick={exportCSV}
-            className="flex items-center gap-1.5 rounded-md border border-input bg-card px-3 py-2 text-xs font-bold hover:bg-muted transition-colors"
+            className="flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold hover:bg-muted transition-colors shadow-2xs"
           >
-            <Download className="h-4 w-4 text-[#FF3B00]" /> Export CSV
+            <Download className="h-4 w-4 text-[#FF3B00]" /> <span className="hidden sm:inline">Export</span> CSV
           </button>
-
 
           <button
             onClick={() => openQuickAdd('content')}
-            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn"
+            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs"
             title="Add a Content Item"
           >
             <Plus className="h-4 w-4 stroke-[3]" /> Add Content
@@ -452,7 +497,7 @@ export default function ContentTrackerPage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="flex flex-wrap items-center gap-3 bg-card p-3 rounded-xl border border-border">
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 bg-card p-2.5 sm:p-3 rounded-xl border border-border">
         <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
           <Filter className="h-3.5 w-3.5 text-[#FF3B00]" /> Filter:
         </div>
@@ -460,7 +505,7 @@ export default function ContentTrackerPage() {
         <select
           value={selectedClient}
           onChange={(e) => setSelectedClient(e.target.value)}
-          className="rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
+          className="rounded-md border border-input bg-background px-2.5 py-1.5 sm:py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00] flex-1 sm:flex-none"
         >
           <option value="">All Clients</option>
           {clients.map((c) => (
@@ -473,7 +518,7 @@ export default function ContentTrackerPage() {
         <select
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          className="rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
+          className="rounded-md border border-input bg-background px-2.5 py-1.5 sm:py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00] flex-1 sm:flex-none"
         >
           <option value="">All Formats</option>
           <option value="REEL">Reel</option>
@@ -484,6 +529,42 @@ export default function ContentTrackerPage() {
         </select>
       </div>
 
+      {/* Mobile Stage Selector Pill Bar */}
+      {viewMode === 'kanban' && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileStageFilter('ALL')}
+            className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+              mobileStageFilter === 'ALL'
+                ? 'bg-[#FF3B00] text-white shadow-xs'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            All Stages ({contentItems.length})
+          </button>
+          {columns.map((c) => {
+            const count = contentItems.filter((i) => i.status === c.id).length;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setMobileStageFilter(c.id)}
+                className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                  mobileStageFilter === c.id
+                    ? 'bg-[#FF3B00] text-white shadow-xs'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />
+                <span>{c.label.split('. ')[1] || c.label}</span>
+                <span className="opacity-70 text-[10px]">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* KANBAN VIEW */}
       {viewMode === 'kanban' && (
         <DndContext
@@ -493,44 +574,52 @@ export default function ContentTrackerPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4">
-            {columns.map((col) => {
-              const colItems = contentItems.filter((i) => i.status === col.id);
-              return (
-                <DroppableTrackerColumn
-                  key={col.id}
-                  col={col}
-                  count={colItems.length}
-                  itemIds={colItems.map((i) => i.id)}
-                >
-                  {colItems.map((item) => (
-                    <SortableTrackerCard key={item.id} item={item} />
-                  ))}
-                  {colItems.length === 0 && (
-                    <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
-                      <p className="text-[11px] font-semibold text-muted-foreground/60">
-                        Drop items here
-                      </p>
-                    </div>
-                  )}
-                </DroppableTrackerColumn>
-              );
-            })}
+          <div className="flex gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x">
+            {columns
+              .filter((col) => mobileStageFilter === 'ALL' || mobileStageFilter === col.id)
+              .map((col) => {
+                const colItems = contentItems.filter((i) => i.status === col.id);
+                return (
+                  <div
+                    key={col.id}
+                    className="w-[85vw] sm:w-[285px] min-w-[85vw] sm:min-w-[285px] max-w-[85vw] sm:max-w-[285px] shrink-0 snap-start"
+                  >
+                    <DroppableTrackerColumn
+                      col={col}
+                      count={colItems.length}
+                      itemIds={colItems.map((i) => i.id)}
+                    >
+                      {colItems.map((item) => (
+                        <SortableTrackerCard key={item.id} item={item} />
+                      ))}
+                      {colItems.length === 0 && (
+                        <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
+                          <p className="text-[11px] font-semibold text-muted-foreground/60">
+                            Drop items here
+                          </p>
+                        </div>
+                      )}
+                    </DroppableTrackerColumn>
+                  </div>
+                );
+              })}
           </div>
 
           <DragOverlay>
             {activeDragItem ? (
-              <div className="rounded-lg border border-[#FF3B00] bg-card p-3 shadow-2xl opacity-95 rotate-2 scale-105 space-y-2 pointer-events-none w-64">
-                <div className="flex items-center justify-between">
+              <div className="rounded-lg border border-[#FF3B00] bg-card p-3 shadow-2xl opacity-95 rotate-2 scale-105 space-y-2 pointer-events-none w-[280px]">
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
                   <span
-                    className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase"
+                    className="px-2 py-0.5 rounded text-[9px] font-black text-white uppercase truncate max-w-[130px]"
                     style={{ backgroundColor: activeDragItem.client?.color || '#FF3B00' }}
                   >
-                    {activeDragItem.client?.name}
+                    {activeDragItem.client?.name || 'Client'}
                   </span>
-                  <span className="text-[9px] font-mono text-muted-foreground uppercase">{activeDragItem.type}</span>
+                  <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1.5 py-0.5 rounded bg-muted/80">
+                    {activeDragItem.type?.replace(/_/g, ' ')}
+                  </span>
                 </div>
-                <h4 className="font-bold text-xs text-foreground">{activeDragItem.title}</h4>
+                <h4 className="font-bold text-xs text-foreground leading-snug line-clamp-2">{activeDragItem.title}</h4>
                 <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
                   <span>{activeDragItem.scheduledDate ? new Date(activeDragItem.scheduledDate).toLocaleDateString() : 'Unscheduled'}</span>
                   {activeDragItem.assignee && (
@@ -546,20 +635,21 @@ export default function ContentTrackerPage() {
       {/* TABLE VIEW */}
       {viewMode === 'table' && (
         <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-mono border-b border-border">
-              <tr>
-                <th className="p-3">Client</th>
-                <th className="p-3">Format</th>
-                <th className="p-3">Title</th>
-                <th className="p-3">Platform</th>
-                <th className="p-3">Scheduled Date</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Approval Outcome</th>
-                <th className="p-3">Assignee</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs min-w-[700px]">
+              <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-mono border-b border-border">
+                <tr>
+                  <th className="p-3">Client</th>
+                  <th className="p-3">Format</th>
+                  <th className="p-3">Title</th>
+                  <th className="p-3">Platform</th>
+                  <th className="p-3">Scheduled Date</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Approval Outcome</th>
+                  <th className="p-3">Assignee</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
               {contentItems.map((item) => (
                 <tr key={item.id} className="hover:bg-muted/30">
                   <td className="p-3">
@@ -605,7 +695,8 @@ export default function ContentTrackerPage() {
             </tbody>
           </table>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
 }

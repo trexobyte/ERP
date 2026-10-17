@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useImpersonation } from '@/components/providers';
 import {
   format,
@@ -48,6 +49,7 @@ import {
   Sparkles,
   GripVertical,
   X,
+  CheckSquare,
 } from 'lucide-react';
 
 function DroppablePoolArea({
@@ -214,12 +216,42 @@ function DraggableContentCard({
 }
 
 export default function PlanningPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedContent, setCachedContent } = useImpersonation();
+  const router = useRouter();
+  const {
+    openQuickAdd,
+    refreshTrigger,
+    triggerRefresh,
+    cachedClients,
+    cachedUsers,
+    cachedContent,
+    setCachedContent,
+    cachedTasks,
+    setCachedTasks,
+  } = useImpersonation();
   const [activeTab, setActiveTab] = useState<'calendar' | 'wizard'>('calendar');
 
   // Calendar State - always opens in current month
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
+  const [contentItems, setContentItems] = useState<any[]>(() => {
+    if (cachedContent && cachedContent.length > 0) return cachedContent;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('trexo_cache_content');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+  const [actionTasks, setActionTasks] = useState<any[]>(() => {
+    if (cachedTasks && cachedTasks.length > 0) return cachedTasks;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('trexo_cache_tasks');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [selectedClientFilter, setSelectedClientFilter] = useState('');
@@ -356,7 +388,7 @@ export default function PlanningPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 4,
+        distance: 8,
       },
     })
   );
@@ -388,19 +420,19 @@ export default function PlanningPage() {
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setClients(data);
-          if (data.length > 0 && !wizardClientId) setWizardClientId(data[0].id);
+          if (!wizardClientId) setWizardClientId(data[0].id);
         }
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
     fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) setUsers(data);
+        if (Array.isArray(data) && data.length > 0) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
@@ -411,26 +443,77 @@ export default function PlanningPage() {
     }
   }, [cachedContent, contentItems.length, selectedClientFilter, myItemsOnly]);
 
-  const fetchCalendarData = () => {
+  const fetchCalendarData = (retryCount = 0) => {
     const params = new URLSearchParams();
     if (selectedClientFilter) params.append('clientId', selectedClientFilter);
     if (myItemsOnly) params.append('myItemsOnly', 'true');
 
     fetch(`/api/content?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn('/api/content returned non-ok status:', res.status);
+          if (retryCount < 2) {
+            setTimeout(() => fetchCalendarData(retryCount + 1), 600);
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
-          setContentItems(data);
-          if (!selectedClientFilter && !myItemsOnly) {
-            setCachedContent(data);
+          const hasFilters = Boolean(selectedClientFilter || myItemsOnly);
+          if (data.length > 0 || hasFilters) {
+            setContentItems(data);
+            if (!hasFilters) {
+              setCachedContent(data);
+              if (typeof window !== 'undefined') {
+                try {
+                  sessionStorage.setItem('trexo_cache_content', JSON.stringify(data));
+                } catch {}
+              }
+            }
+          } else if (contentItems.length === 0 && retryCount < 2) {
+            setTimeout(() => fetchCalendarData(retryCount + 1), 600);
           }
         }
       })
-      .catch((err) => console.error('Failed to fetch content:', err));
+      .catch((err) => {
+        console.error('Failed to fetch content:', err);
+        if (retryCount < 2) {
+          setTimeout(() => fetchCalendarData(retryCount + 1), 600);
+        }
+      });
+  };
+
+  const fetchActionTasks = (retryCount = 0) => {
+    fetch('/api/tasks')
+      .then(async (res) => {
+        if (!res.ok) {
+          if (retryCount < 2) setTimeout(() => fetchActionTasks(retryCount + 1), 600);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setActionTasks(data);
+          setCachedTasks(data);
+          if (typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(data));
+            } catch {}
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch tasks in planning:', err);
+        if (retryCount < 2) setTimeout(() => fetchActionTasks(retryCount + 1), 600);
+      });
   };
 
   useEffect(() => {
     fetchCalendarData();
+    fetchActionTasks();
   }, [selectedClientFilter, myItemsOnly, refreshTrigger]);
 
   // Active drag item for DragOverlay
@@ -455,6 +538,19 @@ export default function PlanningPage() {
   const getItemDateString = (scheduledDate: any) => {
     if (!scheduledDate) return '';
     try {
+      if (typeof scheduledDate === 'string') {
+        const str = scheduledDate.trim();
+        const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          if (str.includes('T')) {
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) {
+              return format(d, 'yyyy-MM-dd');
+            }
+          }
+          return `${match[1]}-${match[2]}-${match[3]}`;
+        }
+      }
       const d = new Date(scheduledDate);
       if (isNaN(d.getTime())) return '';
       return format(d, 'yyyy-MM-dd');
@@ -483,11 +579,11 @@ export default function PlanningPage() {
     const isPoolTarget = targetId === 'unscheduled-pool' || targetData?.type === 'pool';
 
     if (isPoolTarget) {
-      // Optimistically move item back to planned pool
+      // Optimistically move item back to unscheduled pool
       setContentItems((prev) =>
         prev.map((item) =>
           item.id === itemId
-            ? { ...item, status: 'PLANNED' }
+            ? { ...item, status: 'PLANNED', scheduledDate: null }
             : item
         )
       );
@@ -499,6 +595,7 @@ export default function PlanningPage() {
           body: JSON.stringify({
             id: itemId,
             status: 'PLANNED',
+            scheduledDate: null,
           }),
         });
         if (res.ok) {
@@ -800,52 +897,87 @@ export default function PlanningPage() {
             {/* Planned List & Unscheduled Pool Drop Zone */}
             <DroppablePoolArea
               items={filteredContent.filter(
-                (item) => item.status === 'PLANNED' || !item.scheduledDate
+                (item) => !item.scheduledDate
               )}
               onItemClick={setSelectedItem}
               isDragInProgress={Boolean(activeDragItem)}
             />
 
-            <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden border border-border shadow-sm">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                <div key={d} className="bg-muted p-2 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  {d}
-                </div>
-              ))}
+            <div className="overflow-x-auto rounded-xl border border-border shadow-sm scrollbar-thin">
+              <div className="grid grid-cols-7 gap-px bg-border min-w-[700px]">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                  <div key={d} className="bg-muted p-2 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    {d}
+                  </div>
+                ))}
 
-              {daysInCalendar.map((day) => {
-                const dateId = format(day, 'yyyy-MM-dd');
-                const isCurrentMonth = isSameMonth(day, currentMonth);
-                const dayItems = filteredContent
-                  .filter(
-                    (item) =>
-                      item.status !== 'PLANNED' &&
-                      item.scheduledDate &&
-                      getItemDateString(item.scheduledDate) === dateId
-                  )
-                  .sort((a, b) => a.id.localeCompare(b.id));
+                {daysInCalendar.map((day) => {
+                  const dateId = format(day, 'yyyy-MM-dd');
+                  const isCurrentMonth = isSameMonth(day, currentMonth);
+                  const dayItems = filteredContent
+                    .filter(
+                      (item) =>
+                        item.scheduledDate &&
+                        getItemDateString(item.scheduledDate) === dateId
+                    )
+                    .sort((a, b) => a.id.localeCompare(b.id));
 
-                const isCurrentDay = isToday(day);
+                  const dayTasks = actionTasks.filter(
+                    (task) =>
+                      task.dueDate &&
+                      getItemDateString(task.dueDate) === dateId &&
+                      (!selectedClientFilter || task.clientId === selectedClientFilter || task.client?.id === selectedClientFilter) &&
+                      (!task.clientId || !hiddenClients.includes(task.clientId))
+                  );
 
-                return (
-                  <DroppableDayCell
-                    key={day.toISOString()}
-                    day={day}
-                    isCurrentDay={isCurrentDay}
-                    isCurrentMonth={isCurrentMonth}
-                    onQuickAdd={() => openQuickAdd('content', dateId)}
-                  >
-                    {dayItems.map((item) => (
-                      <DraggableContentCard
-                        key={item.id}
-                        item={item}
-                        onClick={() => setSelectedItem(item)}
-                        isDragInProgress={Boolean(activeDragItem)}
-                      />
-                    ))}
-                  </DroppableDayCell>
-                );
-              })}
+                  const isCurrentDay = isToday(day);
+
+                  return (
+                    <DroppableDayCell
+                      key={day.toISOString()}
+                      day={day}
+                      isCurrentDay={isCurrentDay}
+                      isCurrentMonth={isCurrentMonth}
+                      onQuickAdd={() => openQuickAdd('content', dateId)}
+                    >
+                      {/* Scheduled Content Items */}
+                      {dayItems.map((item) => (
+                        <DraggableContentCard
+                          key={item.id}
+                          item={item}
+                          onClick={() => setSelectedItem(item)}
+                          isDragInProgress={Boolean(activeDragItem)}
+                        />
+                      ))}
+
+                      {/* Action Tasks Due On This Date */}
+                      {dayTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="group/task flex items-center justify-between gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold transition-all cursor-pointer shadow-2xs hover:scale-102 select-none"
+                          style={{
+                            backgroundColor: task.urgency === 'URGENT' ? '#FF3B00' : (task.client?.color || '#3B82F6'),
+                            color: '#FFFFFF',
+                          }}
+                          title={`Action Task: ${task.title} (${task.urgency}) - Due today`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push('/tasks');
+                          }}
+                        >
+                          <div className="flex items-center gap-1 min-w-0 flex-1">
+                            <CheckSquare className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                            <span className="truncate leading-tight">{task.title}</span>
+                          </div>
+                          <span className="text-[7.5px] uppercase px-1 rounded-xs bg-black/30 font-mono shrink-0">
+                            {task.urgency}
+                          </span>
+                        </div>
+                      ))}
+                    </DroppableDayCell>
+                  );
+                })}
+              </div>
             </div>
 
             <DragOverlay dropAnimation={null}>

@@ -140,19 +140,19 @@ export function Header() {
       </button>
 
       {/* Global Search Bar */}
-      <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-xs sm:max-w-md" ref={searchContainerRef}>
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 max-w-[200px] xs:max-w-xs sm:max-w-md" ref={searchContainerRef}>
         <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 h-3.5 sm:h-4 w-3.5 sm:w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search content, clients, tasks, invoices..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setShowSearchModal(true);
             }}
             onFocus={() => setShowSearchModal(true)}
-            className="w-full rounded-md border border-input bg-background pl-9 pr-8 py-1.5 text-xs focus:border-[#FF3B00] focus:ring-1 focus:ring-[#FF3B00] outline-hidden transition-all"
+            className="w-full rounded-md border border-input bg-background pl-8 sm:pl-9 pr-7 sm:pr-8 py-1.5 text-xs focus:border-[#FF3B00] focus:ring-1 focus:ring-[#FF3B00] outline-hidden transition-all truncate"
           />
           {searchQuery && (
             <button
@@ -160,9 +160,9 @@ export function Header() {
                 setSearchQuery('');
                 setShowSearchModal(false);
               }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </button>
           )}
 
@@ -304,13 +304,13 @@ export function Header() {
       </div>
 
       {/* Right Action Bar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         {/* Role Impersonator Selector */}
         {isSuperAdmin && (
           <div className="relative">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold border transition-all ${
+              className={`flex items-center gap-1.5 rounded-md px-2 sm:px-2.5 py-1.5 text-xs font-semibold border transition-all ${
                 impersonatedRoleName
                   ? 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400'
                   : 'bg-muted/50 border-border text-foreground hover:bg-muted'
@@ -364,7 +364,7 @@ export function Header() {
         {(effectiveRoleName === 'Super Admin' || (session?.user as any)?.roleName === 'Super Admin') && (
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted hover:border-[#FF3B00]/40 transition-all cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted hover:border-[#FF3B00]/40 transition-all cursor-pointer"
             title="View Edit History & Changes Made (Super Admin Only)"
           >
             <History className="h-4 w-4 text-[#FF3B00]" />
@@ -375,7 +375,7 @@ export function Header() {
         {/* Theme Toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="rounded-md border border-border bg-background p-2 text-foreground hover:bg-muted transition-colors"
+          className="rounded-md border border-border bg-background p-1.5 sm:p-2 text-foreground hover:bg-muted transition-colors"
           title="Toggle Light/Dark Theme"
         >
           {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}

@@ -34,6 +34,7 @@ export function Sidebar() {
     refreshTrigger,
     mobileMenuOpen,
     setMobileMenuOpen,
+    cachedUsers,
   } = useImpersonation();
   const userAny = session?.user as any;
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(userAny?.avatar || null);
@@ -337,16 +338,27 @@ export function Sidebar() {
         {/* Footer Info */}
         {!collapsed && (
           <div className="border-t border-border/50 px-3 py-2">
-            <div className="rounded-lg bg-muted/40 p-2 text-[10px] font-mono text-muted-foreground flex flex-col gap-0.5 border border-border/40">
+            <Link
+              href="/users"
+              className="rounded-lg bg-muted/40 p-2 text-[10px] font-mono text-muted-foreground flex flex-col gap-0.5 border border-border/40 hover:border-[#FF3B00]/50 hover:bg-muted/70 transition-all block cursor-pointer group"
+              title="Click to view Agency Team roster"
+            >
               <div className="flex justify-between items-center">
-                <span>Agency Team:</span>
-                <span className="font-bold text-foreground">15+ Active</span>
+                <span className="group-hover:text-foreground transition-colors">Agency Team:</span>
+                <span className="font-bold text-foreground">
+                  {Array.isArray(cachedUsers) && cachedUsers.length > 0
+                    ? `${cachedUsers.filter((u: any) => u.active !== false).length} Active`
+                    : '9 Active'}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Status:</span>
-                <span className="text-emerald-500 font-semibold">Online (Kathmandu)</span>
+                <span className="text-emerald-500 font-semibold flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Online (Kathmandu)
+                </span>
               </div>
-            </div>
+            </Link>
           </div>
         )}
       </aside>

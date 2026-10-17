@@ -96,26 +96,26 @@ function SortableTaskCard({
         </div>
       </div>
 
-      <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors pointer-events-none">
+      <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors pointer-events-none line-clamp-2 break-words leading-snug">
         {task.title}
       </h4>
 
       {task.client && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground pointer-events-none">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: task.client.color }} />
-          <span>{task.client.name}</span>
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground pointer-events-none min-w-0">
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: task.client.color }} />
+          <span className="truncate">{task.client.name}</span>
         </div>
       )}
 
       {task.contentItem && (
-        <span className="text-[#FF3B00] text-[10px] flex items-center gap-1 pointer-events-none font-mono">
-          <LinkIcon className="h-3 w-3" /> Linked to {task.contentItem.type}
+        <span className="text-[#FF3B00] text-[10px] flex items-center gap-1 pointer-events-none font-mono truncate">
+          <LinkIcon className="h-3 w-3 shrink-0" /> <span className="truncate">Linked to {task.contentItem.type?.replace(/_/g, ' ')}</span>
         </span>
       )}
 
       <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none">
         <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
-        <span>{task.assignee?.name}</span>
+        <span className="truncate max-w-[100px] text-right">{task.assignee?.name}</span>
       </div>
     </div>
   );
@@ -166,7 +166,16 @@ function DroppableTaskColumn({
 export default function TasksPage() {
   const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedTasks, setCachedTasks } = useImpersonation();
   const [viewMode, setViewMode] = useState<'urgency' | 'kanban'>('urgency');
-  const [tasks, setTasks] = useState<any[]>(() => (cachedTasks && cachedTasks.length > 0 ? cachedTasks : []));
+  const [tasks, setTasks] = useState<any[]>(() => {
+    if (cachedTasks && cachedTasks.length > 0) return cachedTasks;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('trexo_cache_tasks');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(() => !cachedTasks || cachedTasks.length === 0);
@@ -175,7 +184,7 @@ export default function TasksPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 4,
+        distance: 8,
       },
     })
   );
@@ -206,10 +215,10 @@ export default function TasksPage() {
   }, [promptContentItem]);
 
   useEffect(() => {
-    if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
-      setClients(cachedClients);
+    if (cachedClients && cachedClients.length > 0) {
+      setClients((prev) => (prev.length === 0 ? cachedClients : prev));
     }
-  }, [cachedClients, clients.length]);
+  }, [cachedClients]);
 
   useEffect(() => {
     if (cachedUsers && cachedUsers.length > 0 && users.length === 0) {
@@ -218,30 +227,30 @@ export default function TasksPage() {
   }, [cachedUsers, users.length]);
 
   useEffect(() => {
-    if (cachedTasks && cachedTasks.length > 0 && tasks.length === 0 && !selectedClient && !selectedAssignee && !selectedUrgency) {
-      setTasks(cachedTasks);
+    if (cachedTasks && cachedTasks.length > 0) {
+      setTasks((prev) => (prev.length === 0 ? cachedTasks : prev));
       setLoading(false);
     }
-  }, [cachedTasks, tasks.length, selectedClient, selectedAssignee, selectedUrgency]);
+  }, [cachedTasks]);
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setClients(data);
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
     fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setUsers(data);
       })
       .catch((err) => console.error('Failed to fetch users:', err));
   }, [refreshTrigger]);
 
-  const fetchTasks = () => {
+  const fetchTasks = (retryCount = 0) => {
     if (tasks.length === 0) setLoading(true);
 
     const params = new URLSearchParams();
@@ -257,43 +266,66 @@ export default function TasksPage() {
     };
 
     fetch(`/api/tasks?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => {
+        if (!res.ok) {
+          console.warn('/api/tasks returned non-ok status:', res.status);
+          if (retryCount < 2) {
+            setTimeout(() => fetchTasks(retryCount + 1), 600);
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
-          let savedOrder: string[] = [];
-          if (typeof window !== 'undefined') {
-            try {
-              const raw = localStorage.getItem('tasks_kanban_order');
-              if (raw) savedOrder = JSON.parse(raw);
-            } catch {}
-          }
+          const hasFilters = Boolean(selectedClient || selectedAssignee || selectedUrgency);
+          if (data.length > 0 || hasFilters) {
+            let savedOrder: string[] = [];
+            if (typeof window !== 'undefined') {
+              try {
+                const raw = localStorage.getItem('tasks_kanban_order');
+                if (raw) savedOrder = JSON.parse(raw);
+              } catch {}
+            }
 
-          if (savedOrder.length > 0) {
-            const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
-            data.sort((a, b) => {
-              const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999 + (urgencyRank[a.urgency] ?? 99);
-              const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999 + (urgencyRank[b.urgency] ?? 99);
-              return idxA - idxB;
-            });
-          } else {
-            // Default ranking strictly by urgency
-            data.sort((a, b) => {
-              const rankA = urgencyRank[a.urgency] ?? 99;
-              const rankB = urgencyRank[b.urgency] ?? 99;
-              return rankA - rankB;
-            });
-          }
+            if (savedOrder.length > 0) {
+              const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
+              data.sort((a, b) => {
+                const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999 + (urgencyRank[a.urgency] ?? 99);
+                const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999 + (urgencyRank[b.urgency] ?? 99);
+                return idxA - idxB;
+              });
+            } else {
+              // Default ranking strictly by urgency
+              data.sort((a, b) => {
+                const rankA = urgencyRank[a.urgency] ?? 99;
+                const rankB = urgencyRank[b.urgency] ?? 99;
+                return rankA - rankB;
+              });
+            }
 
-          setTasks(data);
-          if (!selectedClient && !selectedAssignee && !selectedUrgency) {
-            setCachedTasks(data);
+            setTasks(data);
+            if (!hasFilters) {
+              setCachedTasks(data);
+              if (typeof window !== 'undefined') {
+                try {
+                  sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(data));
+                } catch {}
+              }
+            }
+          } else if (tasks.length === 0 && retryCount < 2) {
+            setTimeout(() => fetchTasks(retryCount + 1), 600);
           }
         }
         setLoading(false);
       })
       .catch((err) => {
         console.error('Failed to fetch tasks:', err);
-        setLoading(false);
+        if (retryCount < 2) {
+          setTimeout(() => fetchTasks(retryCount + 1), 600);
+        } else {
+          setLoading(false);
+        }
       });
   };
 
@@ -440,14 +472,14 @@ export default function TasksPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* Header & Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
             TASKS & URGENCY STREAM <CheckSquare className="h-5 w-5 text-[#FF3B00]" />
           </h1>
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-[11px] sm:text-xs text-muted-foreground font-mono mt-0.5">
             Fast Quick-Complete Checklist & Cross-Module Deliverable Linkage
           </p>
         </div>
@@ -457,29 +489,29 @@ export default function TasksPage() {
           <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border">
             <button
               onClick={() => setViewMode('urgency')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                 viewMode === 'urgency'
                   ? 'bg-[#FF3B00] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <List className="h-4 w-4" /> Urgency Groups
+              <List className="h-4 w-4" /> <span className="hidden xs:inline">Urgency</span>
             </button>
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                 viewMode === 'kanban'
                   ? 'bg-[#FF3B00] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Kanban className="h-4 w-4" /> Kanban View
+              <Kanban className="h-4 w-4" /> <span className="hidden xs:inline">Kanban</span>
             </button>
           </div>
 
           <button
             onClick={() => openQuickAdd('task')}
-            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn"
+            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs"
           >
             <Plus className="h-4 w-4 stroke-[3]" /> Add Task
           </button>
@@ -487,7 +519,7 @@ export default function TasksPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 bg-card p-3 rounded-xl border border-border">
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 bg-card p-2.5 sm:p-3 rounded-xl border border-border">
         <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
           <Filter className="h-3.5 w-3.5 text-[#FF3B00]" /> Filter:
         </div>
@@ -495,7 +527,7 @@ export default function TasksPage() {
         <select
           value={selectedClient}
           onChange={(e) => setSelectedClient(e.target.value)}
-          className="rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
+          className="rounded-md border border-input bg-background px-2.5 py-1.5 sm:py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00] flex-1 sm:flex-none"
         >
           <option value="">All Clients</option>
           {clients.map((c) => (
@@ -508,7 +540,7 @@ export default function TasksPage() {
         <select
           value={selectedAssignee}
           onChange={(e) => setSelectedAssignee(e.target.value)}
-          className="rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00]"
+          className="rounded-md border border-input bg-background px-2.5 py-1.5 sm:py-1 text-xs font-medium outline-hidden focus:border-[#FF3B00] flex-1 sm:flex-none"
         >
           <option value="">All Assignees</option>
           {users.map((u) => (
@@ -521,17 +553,24 @@ export default function TasksPage() {
 
       {/* VIEW A: URGENCY GROUPS VIEW */}
       {viewMode === 'urgency' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
+          {urgencyGroups.every((g) => tasks.filter((t) => t.urgency === g.key).length === 0) && !loading && (
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-border bg-card p-6">
+              <CheckSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-bold text-foreground">No tasks found</p>
+              <p className="text-xs text-muted-foreground mt-1">There are no tasks matching your current filters.</p>
+            </div>
+          )}
           {urgencyGroups.map((group) => {
             const groupTasks = tasks.filter((t) => t.urgency === group.key);
             if (groupTasks.length === 0) return null;
 
             return (
-              <div key={group.key} className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
+              <div key={group.key} className="rounded-xl border border-border bg-card p-3.5 sm:p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between border-b border-border pb-2">
-                  <span className="font-extrabold text-sm tracking-tight text-foreground flex items-center gap-2">
+                  <span className="font-extrabold text-xs sm:text-sm tracking-tight text-foreground flex items-center gap-2">
                     {group.label}
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                    <span className="text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
                       {groupTasks.length} Tasks
                     </span>
                   </span>
@@ -544,7 +583,7 @@ export default function TasksPage() {
                     return (
                       <div
                         key={task.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg border transition-all ${
                           isOverdue
                             ? 'border-rose-500/80 bg-rose-500/10 shadow-xs'
                             : task.status === 'DONE'
@@ -552,19 +591,19 @@ export default function TasksPage() {
                             : 'border-border bg-background hover:border-[#FF3B00]'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                           {/* Quick Complete Checkbox */}
                           <input
                             type="checkbox"
                             checked={task.status === 'DONE'}
                             onChange={() => handleCheckboxClick(task)}
-                            className="h-4 w-4 rounded border-input text-[#FF3B00] focus:ring-[#FF3B00] cursor-pointer"
+                            className="h-4 w-4 mt-0.5 sm:mt-0 rounded border-input text-[#FF3B00] focus:ring-[#FF3B00] cursor-pointer shrink-0"
                           />
 
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                               <span
-                                className={`font-bold text-xs ${
+                                className={`font-bold text-xs sm:text-[13px] break-words ${
                                   task.status === 'DONE' ? 'line-through text-muted-foreground' : 'text-foreground'
                                 }`}
                               >
@@ -572,25 +611,25 @@ export default function TasksPage() {
                               </span>
 
                               {isOverdue && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-500 text-white">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-rose-500 text-white shrink-0">
                                   Overdue
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-3 text-[11px] font-mono text-muted-foreground mt-0.5">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-mono text-muted-foreground mt-1">
                               {task.client && (
                                 <span className="flex items-center gap-1 font-semibold text-foreground">
                                   <span
-                                    className="h-2 w-2 rounded-full"
+                                    className="h-2 w-2 rounded-full shrink-0"
                                     style={{ backgroundColor: task.client.color }}
                                   />
-                                  {task.client.name}
+                                  <span className="truncate max-w-[120px]">{task.client.name}</span>
                                 </span>
                               )}
                               {task.contentItem && (
                                 <span className="text-[#FF3B00] flex items-center gap-1">
-                                  <LinkIcon className="h-3 w-3" /> Linked to {task.contentItem.type}
+                                  <LinkIcon className="h-3 w-3 shrink-0" /> Linked to {task.contentItem.type?.replace(/_/g, ' ')}
                                 </span>
                               )}
                               <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
@@ -599,7 +638,7 @@ export default function TasksPage() {
                         </div>
 
                         {task.assignee && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/30">
                             <span className="text-xs font-semibold text-foreground">{task.assignee.name}</span>
                             <img
                               src={
@@ -630,7 +669,7 @@ export default function TasksPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x">
             {[
               { key: 'TO_DO', label: 'To Do', color: '#64748B' },
               { key: 'IN_PROGRESS', label: 'In Progress', color: '#3B82F6' },
@@ -639,27 +678,28 @@ export default function TasksPage() {
               const colTasks = tasks.filter((t) => t.status === col.key);
 
               return (
-                <DroppableTaskColumn
-                  key={col.key}
-                  col={col}
-                  count={colTasks.length}
-                  taskIds={colTasks.map((t) => t.id)}
-                >
-                  {colTasks.map((task) => (
-                    <SortableTaskCard
-                      key={task.id}
-                      task={task}
-                      onCheckboxClick={handleCheckboxClick}
-                    />
-                  ))}
-                  {colTasks.length === 0 && (
-                    <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
-                      <p className="text-xs font-semibold text-muted-foreground/60">
-                        Drop tasks here
-                      </p>
-                    </div>
-                  )}
-                </DroppableTaskColumn>
+                <div key={col.key} className="w-[85vw] sm:w-[320px] md:w-auto min-w-[85vw] sm:min-w-[320px] md:min-w-0 shrink-0 snap-start">
+                  <DroppableTaskColumn
+                    col={col}
+                    count={colTasks.length}
+                    taskIds={colTasks.map((t) => t.id)}
+                  >
+                    {colTasks.map((task) => (
+                      <SortableTaskCard
+                        key={task.id}
+                        task={task}
+                        onCheckboxClick={handleCheckboxClick}
+                      />
+                    ))}
+                    {colTasks.length === 0 && (
+                      <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
+                        <p className="text-xs font-semibold text-muted-foreground/60">
+                          Drop tasks here
+                        </p>
+                      </div>
+                    )}
+                  </DroppableTaskColumn>
+                </div>
               );
             })}
           </div>

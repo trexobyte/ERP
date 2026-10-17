@@ -39,9 +39,14 @@ function sanitizeDbUrl(rawUrl?: string): string | undefined {
     }
   }
 
-  if (url.includes('pgbouncer=true') && !url.includes('connection_limit')) {
+  if (url.includes('pgbouncer=true')) {
+    if (!url.includes('connection_limit')) {
+      const sep = url.includes('?') ? '&' : '?';
+      url = `${url}${sep}connection_limit=2&pool_timeout=20`;
+    }
+  } else if (!url.includes('connection_limit')) {
     const sep = url.includes('?') ? '&' : '?';
-    url = `${url}${sep}connection_limit=1`;
+    url = `${url}${sep}connection_limit=2&pool_timeout=20`;
   }
 
   return url;
@@ -58,6 +63,8 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 
-globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production' || typeof globalThis !== 'undefined') {
+  globalForPrisma.prisma = prisma;
+}
 
 

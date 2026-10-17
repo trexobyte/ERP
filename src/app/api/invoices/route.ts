@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,30 +27,41 @@ export async function GET(req: Request) {
     if (clientId) where.clientId = clientId;
     if (status) where.status = status;
 
-    const invoices = await prisma.invoice.findMany({
-      where,
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            logo: true,
-          },
-        },
-        payments: {
+    let invoices: any[] = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        invoices = await prisma.invoice.findMany({
+          where,
           include: {
-            recordedBy: {
-              select: { name: true },
+            client: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                logo: true,
+              },
+            },
+            payments: {
+              include: {
+                recordedBy: {
+                  select: { name: true },
+                },
+              },
+              orderBy: { paymentDate: 'desc' },
             },
           },
-          orderBy: { paymentDate: 'desc' },
-        },
-      },
-      orderBy: { issueDate: 'desc' },
-    });
+          orderBy: { issueDate: 'desc' },
+        });
+        break;
+      } catch (err) {
+        if (attempt === 2) throw err;
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      }
+    }
 
-    setCached(cacheKey, invoices, 30);
+    if (invoices.length > 0) {
+      setCached(cacheKey, invoices, 30);
+    }
     return NextResponse.json(invoices);
   } catch (error) {
     console.error('API Error GET /api/invoices:', error);

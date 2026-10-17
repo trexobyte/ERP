@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

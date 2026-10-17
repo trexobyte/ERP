@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -38,37 +40,74 @@ export async function GET(req: Request) {
       ...(userId ? [{ isPersonal: true, assigneeId: userId }] : []),
     ];
 
-    const items = await prisma.contentItem.findMany({
-      where,
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            logo: true,
+    let items;
+    try {
+      items = await prisma.contentItem.findMany({
+        where,
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+              logo: true,
+            },
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              department: true,
+            },
+          },
+          tasks: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
           },
         },
-        assignee: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            department: true,
+        orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
+      });
+    } catch (dbErr) {
+      console.warn('First attempt failed, retrying content query in 250ms...', dbErr);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      items = await prisma.contentItem.findMany({
+        where,
+        include: {
+          client: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+              logo: true,
+            },
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              department: true,
+            },
+          },
+          tasks: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
           },
         },
-        tasks: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
-    });
+        orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
+      });
+    }
 
-    setCached(cacheKey, items, 30);
+    if (Array.isArray(items) && items.length > 0) {
+      setCached(cacheKey, items, 30);
+    }
     return NextResponse.json(items);
   } catch (error) {
     console.error('API Error GET /api/content:', error);

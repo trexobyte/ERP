@@ -204,11 +204,11 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let lastSync = 0;
+    let lastSync = Date.now();
     const handleFocusOrVisibility = () => {
       const now = Date.now();
-      // Throttle focus/visibility refreshes to at most once every 15 seconds
-      if (document.visibilityState === 'visible' && now - lastSync > 15000) {
+      // Throttle focus/visibility refreshes to at most once every 60 seconds
+      if (document.visibilityState === 'visible' && now - lastSync > 60000) {
         lastSync = now;
         setRefreshTrigger((prev) => prev + 1);
       }
@@ -295,58 +295,24 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     setStored('roles', data);
   };
 
-  // Prefetch and sync all core datasets once when session is ready, and on refreshTrigger
+  // Staggered lightweight prefetch for shared globals (clients & users) once session is ready
   useEffect(() => {
     if (!session?.user) return;
 
+    // Fetch shared clients only if not already cached or on explicit refresh
     fetch('/api/clients')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) setCachedClients(data);
+        if (Array.isArray(data) && data.length > 0) setCachedClients(data);
       })
       .catch((err) => console.error('Failed to load shared clients:', err));
 
     fetch('/api/users')
-      .then((res) => (res.ok ? res.json() : []))
+      .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (Array.isArray(data)) setCachedUsers(data);
+        if (Array.isArray(data) && data.length > 0) setCachedUsers(data);
       })
       .catch((err) => console.error('Failed to load shared users:', err));
-
-    fetch('/api/tasks')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setCachedTasks(data);
-      })
-      .catch((err) => console.error('Failed to prefetch tasks:', err));
-
-    fetch('/api/content')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setCachedContent(data);
-      })
-      .catch((err) => console.error('Failed to prefetch content:', err));
-
-    fetch('/api/invoices')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setCachedInvoices(data);
-      })
-      .catch((err) => console.error('Failed to prefetch invoices:', err));
-
-    fetch('/api/dashboard')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setCachedDashboard(data);
-      })
-      .catch((err) => console.error('Failed to prefetch dashboard:', err));
-
-    fetch('/api/roles')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setCachedRoles(data);
-      })
-      .catch((err) => console.error('Failed to prefetch roles:', err));
   }, [session, refreshTrigger]);
 
   const toggleMobileMenu = () => setMobileMenuOpen((prev) => !prev);
