@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached } from '@/lib/cache';
+import { toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -257,11 +258,11 @@ export async function GET(req: Request) {
     };
 
     // 7. "Urgent right now" Widget
-    const currentDate = new Date();
+    const todayKey = getTodayLocalDateKey();
 
     const sortedUrgentTasks = urgentTasks
       .map((t) => {
-        const isOverdue = new Date(t.dueDate) < currentDate;
+        const isOverdue = toLocalDateKey(t.dueDate) < todayKey;
         const urgencyWeight = t.urgency === 'URGENT' ? 4 : t.urgency === 'HIGH' ? 3 : t.urgency === 'MEDIUM' ? 2 : 1;
         return {
           ...t,

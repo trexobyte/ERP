@@ -28,6 +28,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { getTodayLocalDateKey, toLocalDateKey, formatLocalDate } from '@/lib/date-utils';
 
 export default function BillingPage() {
   const { effectivePermissions, refreshTrigger, triggerRefresh, cachedClients, cachedInvoices, setCachedInvoices } = useImpersonation();
@@ -44,8 +45,8 @@ export default function BillingPage() {
   const [clientId, setClientId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState(`TB-2026-00${Math.floor(Math.random() * 90 + 10)}`);
   const [amount, setAmount] = useState('150000');
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState(() => new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10));
+  const [issueDate, setIssueDate] = useState(() => getTodayLocalDateKey());
+  const [dueDate, setDueDate] = useState(() => toLocalDateKey(new Date(Date.now() + 14 * 86400000)));
   const [billingPeriod, setBillingPeriod] = useState(() => new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
   const [paymentNotes, setPaymentNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -440,9 +441,9 @@ export default function BillingPage() {
                     )}
                   </td>
                   <td className="p-3 font-mono text-muted-foreground">
-                    {new Date(inv.issueDate).toLocaleDateString()} →{' '}
+                    {formatLocalDate(inv.issueDate)} →{' '}
                     <span className="font-semibold text-foreground">
-                      {new Date(inv.dueDate).toLocaleDateString()}
+                      {formatLocalDate(inv.dueDate)}
                     </span>
                   </td>
                   <td className="p-3">

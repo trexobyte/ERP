@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
+import { toDatabaseDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,7 +139,7 @@ export async function POST(req: Request) {
         title,
         description: description || null,
         platform: platform || (finalIsPersonal ? 'PERSONAL' : 'INSTAGRAM'),
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : new Date(),
+        scheduledDate: new Date(toDatabaseDateString(scheduledDate) || toDatabaseDateString(new Date())!),
         status: status || 'PLANNED',
         assigneeId: finalAssigneeId,
         clientFeedbackNotes: clientFeedbackNotes || null,
@@ -201,7 +202,9 @@ export async function PUT(req: Request) {
         ...(title && { title }),
         ...(description !== undefined && { description }),
         ...(platform && { platform }),
-        ...(scheduledDate !== undefined && { scheduledDate: scheduledDate ? new Date(scheduledDate) : null }),
+        ...(scheduledDate && {
+          scheduledDate: new Date(toDatabaseDateString(scheduledDate)!),
+        }),
         ...(status && { status }),
         ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
         ...(clientFeedbackNotes !== undefined && { clientFeedbackNotes }),

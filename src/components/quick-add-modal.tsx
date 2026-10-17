@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useImpersonation } from '@/components/providers';
 import { X, Calendar, CheckSquare, Camera, Sparkles, Building2, Lock } from 'lucide-react';
+import { getTodayLocalDateKey, toLocalDateKey } from '@/lib/date-utils';
 
 export function QuickAddModal() {
   const {
@@ -28,14 +29,14 @@ export function QuickAddModal() {
   const [type, setType] = useState('REEL');
   const [platform, setPlatform] = useState('INSTAGRAM');
   const [status, setStatus] = useState('PLANNED');
-  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduledDate, setScheduledDate] = useState(getTodayLocalDateKey());
   const [assigneeId, setAssigneeId] = useState('');
   const [description, setDescription] = useState('');
 
   // Task form
   const [taskTitle, setTaskTitle] = useState('');
   const [taskUrgency, setTaskUrgency] = useState('HIGH');
-  const [taskDueDate, setTaskDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [taskDueDate, setTaskDueDate] = useState(getTodayLocalDateKey());
   const [taskClientId, setTaskClientId] = useState('');
   const [taskAssigneeId, setTaskAssigneeId] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -46,10 +47,10 @@ export function QuickAddModal() {
         setActiveTab(quickAddType);
       }
       if (quickAddDate) {
-        setScheduledDate(quickAddDate);
-        setTaskDueDate(quickAddDate);
+        setScheduledDate(toLocalDateKey(quickAddDate));
+        setTaskDueDate(toLocalDateKey(quickAddDate));
       } else {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getTodayLocalDateKey();
         setScheduledDate(todayStr);
         setTaskDueDate(todayStr);
       }
@@ -127,7 +128,7 @@ export function QuickAddModal() {
           title: title.trim(),
           description: description ? description.trim() : null,
           platform: 'PERSONAL',
-          scheduledDate: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+          scheduledDate: toLocalDateKey(scheduledDate) || getTodayLocalDateKey(),
           status: 'PLANNED',
           assigneeId: null, // API automatically associates with current user
         }),
@@ -177,7 +178,7 @@ export function QuickAddModal() {
           title: title.trim(),
           description: description ? description.trim() : null,
           platform: platform || 'INSTAGRAM',
-          scheduledDate: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+          scheduledDate: toLocalDateKey(scheduledDate) || getTodayLocalDateKey(),
           status: status || 'PLANNED',
           assigneeId: assigneeId || null,
         }),
@@ -218,7 +219,7 @@ export function QuickAddModal() {
           title: taskTitle.trim(),
           description: taskDescription ? taskDescription.trim() : null,
           urgency: taskUrgency || 'HIGH',
-          dueDate: taskDueDate ? new Date(taskDueDate).toISOString() : new Date().toISOString(),
+          dueDate: toLocalDateKey(taskDueDate) || getTodayLocalDateKey(),
           clientId: taskClientId || null,
           assigneeId: taskAssigneeId || null,
           status: 'TO_DO',

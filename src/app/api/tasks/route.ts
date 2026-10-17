@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
+import { toDatabaseDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
         contentItemId: contentItemId || null,
         assigneeId: assigneeId || null,
         createdById: userId,
-        dueDate: dueDate ? new Date(dueDate) : new Date(),
+        dueDate: new Date(toDatabaseDateString(dueDate) || toDatabaseDateString(new Date())!),
         urgency: urgency || 'MEDIUM',
         status: status || 'TO_DO',
       },
@@ -208,7 +209,7 @@ export async function PUT(req: Request) {
         ...(clientId !== undefined && { clientId }),
         ...(contentItemId !== undefined && { contentItemId }),
         ...(assigneeId !== undefined && { assigneeId }),
-        ...(dueDate && { dueDate: new Date(dueDate) }),
+        ...(dueDate && { dueDate: new Date(toDatabaseDateString(dueDate)!) }),
         ...(urgency && { urgency }),
         ...(status && {
           status,

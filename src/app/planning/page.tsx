@@ -51,6 +51,12 @@ import {
   X,
   CheckSquare,
 } from 'lucide-react';
+import {
+  toLocalDateKey,
+  parseLocalDateKey,
+  getTodayLocalDateKey,
+  toDatabaseDateString,
+} from '@/lib/date-utils';
 
 function DroppablePoolArea({
   items,
@@ -110,26 +116,28 @@ function DroppablePoolArea({
 
 function DroppableDayCell({
   day,
+  dateKey,
   isCurrentDay,
   isCurrentMonth,
   onQuickAdd,
   children,
 }: {
   day: Date;
+  dateKey: string;
   isCurrentDay: boolean;
   isCurrentMonth: boolean;
   onQuickAdd: () => void;
   children: React.ReactNode;
 }) {
-  const dateId = format(day, 'yyyy-MM-dd');
   const { setNodeRef, isOver } = useDroppable({
-    id: dateId,
-    data: { type: 'day', date: dateId },
+    id: dateKey,
+    data: { type: 'day', date: dateKey },
   });
 
   return (
     <div
       ref={setNodeRef}
+      data-date={dateKey}
       className={`min-h-32 p-2 transition-colors relative flex flex-col justify-between group ${
         isOver ? 'ring-2 ring-[#FF3B00] bg-[#FF3B00]/20 z-20 shadow-lg' : ''
       } ${
@@ -281,7 +289,7 @@ export default function PlanningPage() {
       setEditStatus(selectedItem.status || 'PLANNED');
       setEditScheduledDate(
         selectedItem.scheduledDate
-          ? new Date(selectedItem.scheduledDate).toISOString().split('T')[0]
+          ? toLocalDateKey(selectedItem.scheduledDate)
           : ''
       );
       setEditAssigneeId(selectedItem.assigneeId || selectedItem.assignee?.id || '');
@@ -536,27 +544,7 @@ export default function PlanningPage() {
   };
 
   const getItemDateString = (scheduledDate: any) => {
-    if (!scheduledDate) return '';
-    try {
-      if (typeof scheduledDate === 'string') {
-        const str = scheduledDate.trim();
-        const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (match) {
-          if (str.includes('T')) {
-            const d = new Date(str);
-            if (!isNaN(d.getTime())) {
-              return format(d, 'yyyy-MM-dd');
-            }
-          }
-          return `${match[1]}-${match[2]}-${match[3]}`;
-        }
-      }
-      const d = new Date(scheduledDate);
-      if (isNaN(d.getTime())) return '';
-      return format(d, 'yyyy-MM-dd');
-    } catch {
-      return '';
-    }
+    return toLocalDateKey(scheduledDate);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -583,7 +571,7 @@ export default function PlanningPage() {
       setContentItems((prev) =>
         prev.map((item) =>
           item.id === itemId
-            ? { ...item, status: 'PLANNED', scheduledDate: null }
+            ? { ...item, status: 'PLANNED' }
             : item
         )
       );
@@ -595,7 +583,6 @@ export default function PlanningPage() {
           body: JSON.stringify({
             id: itemId,
             status: 'PLANNED',
-            scheduledDate: null,
           }),
         });
         if (res.ok) {
@@ -607,30 +594,26 @@ export default function PlanningPage() {
       return;
     }
 
-    const targetDateStr =
-      targetData?.date ||
-      (targetId.startsWith('20') && targetId.split('-').length === 3 ? targetId : null);
-    if (!targetDateStr) return;
+    // Direct read of target date key - never recomputed from index math
+    const targetDateKey =
+      targetData?.type === 'day'
+        ? targetData.date || targetId
+        : targetData?.type === 'card'
+        ? toLocalDateKey(targetData.item?.scheduledDate)
+        : targetId.startsWith('20') && targetId.split('-').length === 3
+        ? targetId
+        : null;
 
-    const parts = targetDateStr.split('-');
-    if (parts.length !== 3) return;
-
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-
-    // Set 12:00 PM local time to prevent timezone shift across day boundaries
-    const targetDate = new Date(year, month, day, 12, 0, 0);
-    const targetIso = targetDate.toISOString();
+    if (!targetDateKey) return;
 
     const activeItem = contentItems.find((i) => i.id === itemId);
     const nextStatus = activeItem?.status === 'PLANNED' ? 'SCHEDULED' : (activeItem?.status || 'SCHEDULED');
 
-    // Optimistically update local state immediately (instant 0ms lag)
+    // Optimistically update local state immediately with exact date key (0ms lag)
     setContentItems((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, scheduledDate: targetIso, status: nextStatus }
+          ? { ...item, scheduledDate: targetDateKey, status: nextStatus }
           : item
       )
     );
@@ -641,7 +624,7 @@ export default function PlanningPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: itemId,
-          scheduledDate: targetIso,
+          scheduledDate: targetDateKey,
           status: nextStatus,
         }),
       });
@@ -897,7 +880,7 @@ export default function PlanningPage() {
             {/* Planned List & Unscheduled Pool Drop Zone */}
             <DroppablePoolArea
               items={filteredContent.filter(
-                (item) => !item.scheduledDate
+                (item) => item.status === 'PLANNED' || !item.scheduledDate
               )}
               onItemClick={setSelectedItem}
               isDragInProgress={Boolean(activeDragItem)}
@@ -912,20 +895,21 @@ export default function PlanningPage() {
                 ))}
 
                 {daysInCalendar.map((day) => {
-                  const dateId = format(day, 'yyyy-MM-dd');
+                  const dateKey = toLocalDateKey(day);
                   const isCurrentMonth = isSameMonth(day, currentMonth);
                   const dayItems = filteredContent
                     .filter(
                       (item) =>
+                        item.status !== 'PLANNED' &&
                         item.scheduledDate &&
-                        getItemDateString(item.scheduledDate) === dateId
+                        toLocalDateKey(item.scheduledDate) === dateKey
                     )
                     .sort((a, b) => a.id.localeCompare(b.id));
 
                   const dayTasks = actionTasks.filter(
                     (task) =>
                       task.dueDate &&
-                      getItemDateString(task.dueDate) === dateId &&
+                      toLocalDateKey(task.dueDate) === dateKey &&
                       (!selectedClientFilter || task.clientId === selectedClientFilter || task.client?.id === selectedClientFilter) &&
                       (!task.clientId || !hiddenClients.includes(task.clientId))
                   );
@@ -934,11 +918,12 @@ export default function PlanningPage() {
 
                   return (
                     <DroppableDayCell
-                      key={day.toISOString()}
+                      key={dateKey}
                       day={day}
+                      dateKey={dateKey}
                       isCurrentDay={isCurrentDay}
                       isCurrentMonth={isCurrentMonth}
-                      onQuickAdd={() => openQuickAdd('content', dateId)}
+                      onQuickAdd={() => openQuickAdd('content', dateKey)}
                     >
                       {/* Scheduled Content Items */}
                       {dayItems.map((item) => (
@@ -1229,7 +1214,7 @@ export default function PlanningPage() {
                       type: 'REEL',
                       platform: 'INSTAGRAM',
                       title: '',
-                      scheduledDate: format(new Date(), 'yyyy-MM-dd'),
+                      scheduledDate: getTodayLocalDateKey(),
                       assigneeId: '',
                       status: 'PLANNED',
                     },

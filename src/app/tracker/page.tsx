@@ -36,6 +36,7 @@ import {
   Plus,
   GripVertical,
 } from 'lucide-react';
+import { formatLocalDate, getTodayLocalDateKey } from '@/lib/date-utils';
 
 function SortableTrackerCard({ item }: { item: any }) {
   const {
@@ -115,7 +116,7 @@ function SortableTrackerCard({ item }: { item: any }) {
       {/* Footer: Date & Assignee */}
       <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground font-mono pointer-events-none gap-1 min-w-0">
         <span className="truncate">
-          {item.scheduledDate ? new Date(item.scheduledDate).toLocaleDateString() : 'Unscheduled'}
+          {item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}
         </span>
         {item.assignee && (
           <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[8.5px] truncate max-w-[65px]">
@@ -425,7 +426,7 @@ export default function ContentTrackerPage() {
       `"${item.client?.name || ''}"`,
       item.type,
       item.platform,
-      new Date(item.scheduledDate).toLocaleDateString(),
+      formatLocalDate(item.scheduledDate),
       item.status,
       item.approvalOutcome || 'None',
       `"${item.assignee?.name || 'Unassigned'}"`,
@@ -435,7 +436,7 @@ export default function ContentTrackerPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `TrexoByte_Content_Tracker_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `TrexoByte_Content_Tracker_${getTodayLocalDateKey()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -621,7 +622,7 @@ export default function ContentTrackerPage() {
                 </div>
                 <h4 className="font-bold text-[11px] text-foreground leading-snug line-clamp-2">{activeDragItem.title}</h4>
                 <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground font-mono">
-                  <span>{activeDragItem.scheduledDate ? new Date(activeDragItem.scheduledDate).toLocaleDateString() : 'Unscheduled'}</span>
+                  <span>{activeDragItem.scheduledDate ? formatLocalDate(activeDragItem.scheduledDate) : 'Unscheduled'}</span>
                   {activeDragItem.assignee && (
                     <span className="font-semibold text-foreground text-[8.5px]">{activeDragItem.assignee.name.split(' ')[0]}</span>
                   )}
@@ -663,7 +664,7 @@ export default function ContentTrackerPage() {
                   <td className="p-3 font-mono font-bold text-foreground">{item.type}</td>
                   <td className="p-3 font-bold text-foreground">{item.title}</td>
                   <td className="p-3 font-mono text-muted-foreground">{item.platform}</td>
-                  <td className="p-3 font-mono">{new Date(item.scheduledDate).toLocaleDateString()}</td>
+                  <td className="p-3 font-mono">{formatLocalDate(item.scheduledDate)}</td>
                   <td className="p-3">
                     <select
                       value={item.status}

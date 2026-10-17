@@ -13,12 +13,13 @@ import {
   Sparkles,
   Printer,
 } from 'lucide-react';
+import { getTodayLocalDateKey } from '@/lib/date-utils';
 
 export default function ReportsPage() {
   const { refreshTrigger, cachedClients, cachedContent, cachedInvoices } = useImpersonation();
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [selectedClientId, setSelectedClientId] = useState('all');
-  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [reportMonth, setReportMonth] = useState(() => getTodayLocalDateKey().slice(0, 7));
   const [contentItems, setContentItems] = useState<any[]>(() => (cachedContent && cachedContent.length > 0 ? cachedContent : []));
   const [invoices, setInvoices] = useState<any[]>(() => (cachedInvoices && cachedInvoices.length > 0 ? cachedInvoices : []));
   const [loading, setLoading] = useState(() => !cachedContent || cachedContent.length === 0);

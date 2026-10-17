@@ -37,6 +37,7 @@ import {
   X,
   GripVertical,
 } from 'lucide-react';
+import { formatLocalDate, toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
 
 function SortableTaskCard({
   task,
@@ -114,7 +115,7 @@ function SortableTaskCard({
       )}
 
       <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none">
-        <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
+        <span>Due {formatLocalDate(task.dueDate)}</span>
         <span className="truncate max-w-[100px] text-right">{task.assignee?.name}</span>
       </div>
     </div>
@@ -578,7 +579,7 @@ export default function TasksPage() {
 
                 <div className="space-y-2">
                   {groupTasks.map((task) => {
-                    const isOverdue = task.status !== 'DONE' && new Date(task.dueDate) < currentDate;
+                    const isOverdue = task.status !== 'DONE' && toLocalDateKey(task.dueDate) < getTodayLocalDateKey();
 
                     return (
                       <div
@@ -632,7 +633,7 @@ export default function TasksPage() {
                                   <LinkIcon className="h-3 w-3 shrink-0" /> Linked to {task.contentItem.type?.replace(/_/g, ' ')}
                                 </span>
                               )}
-                              <span>Due {new Date(task.dueDate).toLocaleDateString()}</span>
+                              <span>Due {formatLocalDate(task.dueDate)}</span>
                             </div>
                           </div>
                         </div>
@@ -724,7 +725,7 @@ export default function TasksPage() {
                   </div>
                 )}
                 <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
-                  <span>Due {new Date(activeDragTask.dueDate).toLocaleDateString()}</span>
+                  <span>Due {formatLocalDate(activeDragTask.dueDate)}</span>
                   <span>{activeDragTask.assignee?.name}</span>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { invalidateCache } from '@/lib/cache';
+import { toDatabaseDateString } from '@/lib/date-utils';
 
 export async function POST(req: Request) {
   try {
@@ -21,10 +22,8 @@ export async function POST(req: Request) {
 
     const createdItems = await prisma.$transaction(
       items.map((item: any) => {
-        const rawDate = item.scheduledDate;
-        const dateObj = rawDate
-          ? new Date(rawDate.includes('T') ? rawDate : rawDate + 'T12:00:00')
-          : new Date();
+        const dbDate = toDatabaseDateString(item.scheduledDate) || toDatabaseDateString(new Date())!;
+        const dateObj = new Date(dbDate);
 
         return prisma.contentItem.create({
           data: {

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
+import { toDatabaseDateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,8 +105,8 @@ export async function POST(req: Request) {
         clientId,
         invoiceNumber: finalInvNum,
         amount: parsedAmount,
-        issueDate: issueDate ? new Date(issueDate) : new Date(),
-        dueDate: dueDate ? new Date(dueDate) : new Date(),
+        issueDate: new Date(toDatabaseDateString(issueDate) || toDatabaseDateString(new Date())!),
+        dueDate: new Date(toDatabaseDateString(dueDate) || toDatabaseDateString(new Date())!),
         status: status || 'SENT',
         billingPeriod: billingPeriod || 'Current Month',
         paymentNotes: paymentNotes || null,
@@ -157,8 +158,8 @@ export async function PUT(req: Request) {
         ...(status && { status }),
         ...(paymentNotes !== undefined && { paymentNotes }),
         ...(amount !== undefined && { amount: parseFloat(amount) }),
-        ...(dueDate && { dueDate: new Date(dueDate) }),
-        ...(issueDate && { issueDate: new Date(issueDate) }),
+        ...(dueDate && { dueDate: new Date(toDatabaseDateString(dueDate)!) }),
+        ...(issueDate && { issueDate: new Date(toDatabaseDateString(issueDate)!) }),
         ...(billingPeriod && { billingPeriod }),
       },
       include: { client: true, payments: true },
