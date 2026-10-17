@@ -13,7 +13,7 @@ import {
   Sparkles,
   Printer,
 } from 'lucide-react';
-import { getTodayLocalDateKey } from '@/lib/date-utils';
+import { getTodayLocalDateKey, formatLocalDate } from '@/lib/date-utils';
 
 export default function ReportsPage() {
   const { refreshTrigger, cachedClients, cachedContent, cachedInvoices } = useImpersonation();
@@ -106,7 +106,7 @@ export default function ReportsPage() {
       `"${item.title.replace(/"/g, '""')}"`,
       item.type,
       item.platform,
-      new Date(item.scheduledDate).toLocaleDateString(),
+      item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled',
       item.status,
       item.approvalOutcome || 'None',
     ]);
@@ -293,7 +293,7 @@ export default function ReportsPage() {
                     <td className="p-3 font-bold text-foreground">{item.title}</td>
                     <td className="p-3 font-mono text-muted-foreground">{item.type}</td>
                     <td className="p-3 font-mono">{item.platform}</td>
-                    <td className="p-3 font-mono">{new Date(item.scheduledDate).toLocaleDateString()}</td>
+                    <td className="p-3 font-mono">{item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}</td>
                     <td className="p-3 font-extrabold text-[#FF3B00]">{item.status}</td>
                     <td className="p-3">
                       {item.approvalOutcome ? (

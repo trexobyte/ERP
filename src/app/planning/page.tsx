@@ -68,20 +68,21 @@ function DroppablePoolArea({
   isDragInProgress?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: 'unscheduled-pool',
+    id: 'pool',
     data: { type: 'pool' },
   });
 
   return (
     <div
       ref={setNodeRef}
-      className={`p-4 rounded-xl border transition-all ${
+      id="pool"
+      className={`p-4 rounded-xl border transition-all min-h-[140px] flex flex-col justify-between ${
         isOver
           ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-lg'
           : 'border-border bg-card shadow-xs'
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 pointer-events-none">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#FF3B00]" />
           <h3 className="font-extrabold text-sm text-foreground">Planned List & Unscheduled Pool</h3>
@@ -95,8 +96,8 @@ function DroppablePoolArea({
       </div>
 
       {items.length === 0 ? (
-        <div className="py-5 text-center text-xs font-mono text-muted-foreground/60 border border-dashed border-border rounded-lg bg-muted/20">
-          Planned pool is currently empty. Drag scheduled items here from the calendar to move them back to planned status!
+        <div className="py-6 flex-1 flex items-center justify-center text-center text-xs font-mono text-muted-foreground/60 border border-dashed border-border rounded-lg bg-muted/20 pointer-events-none select-none">
+          Planned pool is currently empty. Drag scheduled items here from the calendar to unschedule them!
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 max-h-48 overflow-y-auto p-1">
@@ -279,6 +280,14 @@ export default function PlanningPage() {
   const [editClientFeedbackNotes, setEditClientFeedbackNotes] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingEdit, setDeletingEdit] = useState(false);
+  const [toastError, setToastError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (toastError) {
+      const timer = setTimeout(() => setToastError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastError]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -312,7 +321,7 @@ export default function PlanningPage() {
           type: editIsPersonal ? 'PERSONAL' : editType,
           platform: editIsPersonal ? 'PERSONAL' : editPlatform,
           status: editStatus,
-          scheduledDate: editScheduledDate,
+          scheduledDate: editScheduledDate || null,
           assigneeId: editAssigneeId || null,
           clientId: editIsPersonal ? null : (editClientId || null),
           isPersonal: editIsPersonal,
@@ -427,7 +436,7 @@ export default function PlanningPage() {
 
   // Fetch clients and users for filter dropdowns only on mount or refreshTrigger
   useEffect(() => {
-    fetch('/api/clients')
+    fetch('/api/clients', { cache: 'no-store' })
       .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -437,7 +446,7 @@ export default function PlanningPage() {
       })
       .catch((err) => console.error('Failed to fetch clients:', err));
 
-    fetch('/api/users')
+    fetch('/api/users', { cache: 'no-store' })
       .then(async (res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setUsers(data);
@@ -456,7 +465,7 @@ export default function PlanningPage() {
     if (selectedClientFilter) params.append('clientId', selectedClientFilter);
     if (myItemsOnly) params.append('myItemsOnly', 'true');
 
-    fetch(`/api/content?${params.toString()}`)
+    fetch(`/api/content?${params.toString()}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) {
           console.warn('/api/content returned non-ok status:', res.status);
@@ -494,7 +503,7 @@ export default function PlanningPage() {
   };
 
   const fetchActionTasks = (retryCount = 0) => {
-    fetch('/api/tasks')
+    fetch('/api/tasks', { cache: 'no-store' })
       .then(async (res) => {
         if (!res.ok) {
           if (retryCount < 2) setTimeout(() => fetchActionTasks(retryCount + 1), 600);
@@ -564,14 +573,20 @@ export default function PlanningPage() {
     const targetId = over.id as string;
     const targetData = over.data?.current;
 
-    const isPoolTarget = targetId === 'unscheduled-pool' || targetData?.type === 'pool';
+    const isPoolTarget =
+      targetId === 'pool' ||
+      targetId === 'unscheduled-pool' ||
+      targetData?.type === 'pool' ||
+      (targetData?.type === 'card' && !targetData?.item?.scheduledDate);
+
+    const previousItems = [...contentItems];
 
     if (isPoolTarget) {
-      // Optimistically move item back to unscheduled pool
+      // Optimistically move item to unscheduled pool
       setContentItems((prev) =>
         prev.map((item) =>
           item.id === itemId
-            ? { ...item, status: 'PLANNED' }
+            ? { ...item, scheduledDate: null, status: 'PLANNED' }
             : item
         )
       );
@@ -582,14 +597,27 @@ export default function PlanningPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: itemId,
-            status: 'PLANNED',
+            scheduledDate: null,
           }),
         });
-        if (res.ok) {
-          triggerRefresh();
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error || `Failed to unschedule task (${res.status})`;
+          setContentItems(previousItems);
+          setToastError(errMsg);
+          return;
         }
-      } catch (err) {
-        console.warn('Drag unschedule API error:', err);
+
+        const updatedItem = await res.json();
+        setContentItems((prev) =>
+          prev.map((item) => (item.id === itemId ? updatedItem : item))
+        );
+        triggerRefresh();
+      } catch (err: any) {
+        console.error('Drag unschedule API error:', err);
+        setContentItems(previousItems);
+        setToastError(err?.message || 'Failed to unschedule task');
       }
       return;
     }
@@ -599,7 +627,7 @@ export default function PlanningPage() {
       targetData?.type === 'day'
         ? targetData.date || targetId
         : targetData?.type === 'card'
-        ? toLocalDateKey(targetData.item?.scheduledDate)
+        ? (targetData.item?.scheduledDate ? toLocalDateKey(targetData.item.scheduledDate) : null)
         : targetId.startsWith('20') && targetId.split('-').length === 3
         ? targetId
         : null;
@@ -625,14 +653,26 @@ export default function PlanningPage() {
         body: JSON.stringify({
           id: itemId,
           scheduledDate: targetDateKey,
-          status: nextStatus,
         }),
       });
-      if (res.ok) {
-        triggerRefresh();
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.error || `Failed to schedule task (${res.status})`;
+        setContentItems(previousItems);
+        setToastError(errMsg);
+        return;
       }
-    } catch (err) {
-      console.warn('Drag reschedule API error:', err);
+
+      const updatedItem = await res.json();
+      setContentItems((prev) =>
+        prev.map((item) => (item.id === itemId ? updatedItem : item))
+      );
+      triggerRefresh();
+    } catch (err: any) {
+      console.error('Drag reschedule API error:', err);
+      setContentItems(previousItems);
+      setToastError(err?.message || 'Failed to schedule task');
     }
   };
 
@@ -880,7 +920,7 @@ export default function PlanningPage() {
             {/* Planned List & Unscheduled Pool Drop Zone */}
             <DroppablePoolArea
               items={filteredContent.filter(
-                (item) => item.status === 'PLANNED' || !item.scheduledDate
+                (item) => !item.scheduledDate
               )}
               onItemClick={setSelectedItem}
               isDragInProgress={Boolean(activeDragItem)}
@@ -900,8 +940,7 @@ export default function PlanningPage() {
                   const dayItems = filteredContent
                     .filter(
                       (item) =>
-                        item.status !== 'PLANNED' &&
-                        item.scheduledDate &&
+                        Boolean(item.scheduledDate) &&
                         toLocalDateKey(item.scheduledDate) === dateKey
                     )
                     .sort((a, b) => a.id.localeCompare(b.id));
@@ -1487,6 +1526,18 @@ export default function PlanningPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {toastError && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-xl animate-in slide-in-from-bottom-5">
+          <span>⚠️ {toastError}</span>
+          <button
+            type="button"
+            onClick={() => setToastError(null)}
+            className="ml-2 hover:opacity-80 text-white font-bold cursor-pointer"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

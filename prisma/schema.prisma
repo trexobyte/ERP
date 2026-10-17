@@ -90,7 +90,7 @@ model ContentItem {
   title               String
   description         String?
   platform            String?  // "INSTAGRAM", "FACEBOOK", "TIKTOK", "YOUTUBE", "LINKEDIN", "PERSONAL"
-  scheduledDate       DateTime
+  scheduledDate       DateTime?
   status              String   @default("PLANNED") // "PLANNED", "SHOT", "EDITED", "CLIENT_APPROVAL", "SCHEDULED", "PUBLISHED"
   assigneeId          String?
   assignee            User?    @relation("AssignedContent", fields: [assigneeId], references: [id])

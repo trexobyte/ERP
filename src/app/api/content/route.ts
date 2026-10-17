@@ -131,6 +131,22 @@ export async function POST(req: Request) {
     const finalAssigneeId = finalIsPersonal ? (assigneeId || userId || null) : (assigneeId || null);
     const finalClientId = finalIsPersonal ? (clientId || null) : (clientId || null);
 
+    let finalScheduledDate: Date | null = null;
+    let finalStatus = status || 'PLANNED';
+
+    if (scheduledDate) {
+      const dbDateStr = toDatabaseDateString(scheduledDate);
+      if (dbDateStr) {
+        finalScheduledDate = new Date(dbDateStr);
+        if (!status || status === 'PLANNED') {
+          finalStatus = 'SCHEDULED';
+        }
+      }
+    } else {
+      finalScheduledDate = null;
+      finalStatus = status || 'PLANNED';
+    }
+
     const item = await prisma.contentItem.create({
       data: {
         clientId: finalClientId,
@@ -139,16 +155,37 @@ export async function POST(req: Request) {
         title,
         description: description || null,
         platform: platform || (finalIsPersonal ? 'PERSONAL' : 'INSTAGRAM'),
-        scheduledDate: new Date(toDatabaseDateString(scheduledDate) || toDatabaseDateString(new Date())!),
-        status: status || 'PLANNED',
+        scheduledDate: finalScheduledDate,
+        status: finalStatus,
         assigneeId: finalAssigneeId,
         clientFeedbackNotes: clientFeedbackNotes || null,
         approvalOutcome: approvalOutcome || null,
         attachments: attachments ? (typeof attachments === 'string' ? attachments : JSON.stringify(attachments)) : null,
       },
       include: {
-        client: true,
-        assignee: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            logo: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            department: true,
+          },
+        },
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
       },
     });
 
@@ -192,28 +229,76 @@ export async function PUT(req: Request) {
     }
 
     const existing = await prisma.contentItem.findUnique({ where: { id }, include: { client: true } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Content item not found' }, { status: 404 });
+    }
+
+    const updateData: any = {};
+    if (clientId !== undefined) updateData.clientId = clientId || null;
+    if (isPersonal !== undefined) updateData.isPersonal = isPersonal;
+    if (type !== undefined) updateData.type = type;
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (platform !== undefined) updateData.platform = platform;
+    if (assigneeId !== undefined) updateData.assigneeId = assigneeId || null;
+    if (clientFeedbackNotes !== undefined) updateData.clientFeedbackNotes = clientFeedbackNotes;
+    if (approvalOutcome !== undefined) updateData.approvalOutcome = approvalOutcome;
+    if (attachments !== undefined) updateData.attachments = typeof attachments === 'string' ? attachments : JSON.stringify(attachments);
+
+    if (status !== undefined) {
+      updateData.status = status;
+    }
+
+    if ('scheduledDate' in body) {
+      if (scheduledDate === null || scheduledDate === '' || scheduledDate === undefined) {
+        updateData.scheduledDate = null;
+        if (status === undefined) {
+          updateData.status = 'PLANNED';
+        }
+      } else {
+        const dbDateStr = toDatabaseDateString(scheduledDate);
+        if (dbDateStr) {
+          updateData.scheduledDate = new Date(dbDateStr);
+          const currentStatus = status !== undefined ? status : existing.status;
+          if (currentStatus === 'PLANNED') {
+            updateData.status = 'SCHEDULED';
+          }
+        } else {
+          updateData.scheduledDate = null;
+          if (status === undefined) {
+            updateData.status = 'PLANNED';
+          }
+        }
+      }
+    }
 
     const updated = await prisma.contentItem.update({
       where: { id },
-      data: {
-        ...(clientId !== undefined && { clientId: clientId || null }),
-        ...(isPersonal !== undefined && { isPersonal }),
-        ...(type && { type }),
-        ...(title && { title }),
-        ...(description !== undefined && { description }),
-        ...(platform && { platform }),
-        ...(scheduledDate && {
-          scheduledDate: new Date(toDatabaseDateString(scheduledDate)!),
-        }),
-        ...(status && { status }),
-        ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
-        ...(clientFeedbackNotes !== undefined && { clientFeedbackNotes }),
-        ...(approvalOutcome !== undefined && { approvalOutcome }),
-        ...(attachments !== undefined && { attachments: typeof attachments === 'string' ? attachments : JSON.stringify(attachments) }),
-      },
+      data: updateData,
       include: {
-        client: true,
-        assignee: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            logo: true,
+          },
+        },
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            department: true,
+          },
+        },
+        tasks: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
       },
     });
 

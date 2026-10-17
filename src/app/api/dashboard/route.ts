@@ -184,18 +184,21 @@ export async function GET(req: Request) {
       { name: 'Published', value: statusCounts.PUBLISHED, color: '#10B981' },
     ];
 
-    // Dynamic weekly output based on content items
-    const w1Done = allContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() <= 7).length;
-    const w1Prog = allContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() <= 7).length;
+    // Dynamic weekly output based on scheduled content items (excluding unscheduled pool)
+    const scheduledContent = allContent.filter(
+      (i): i is typeof i & { scheduledDate: Date } => Boolean(i.scheduledDate)
+    );
+    const w1Done = scheduledContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() <= 7).length;
+    const w1Prog = scheduledContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() <= 7).length;
     
-    const w2Done = allContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 7 && new Date(i.scheduledDate).getDate() <= 14).length;
-    const w2Prog = allContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 7 && new Date(i.scheduledDate).getDate() <= 14).length;
+    const w2Done = scheduledContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 7 && new Date(i.scheduledDate).getDate() <= 14).length;
+    const w2Prog = scheduledContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 7 && new Date(i.scheduledDate).getDate() <= 14).length;
     
-    const w3Done = allContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 14 && new Date(i.scheduledDate).getDate() <= 21).length;
-    const w3Prog = allContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 14 && new Date(i.scheduledDate).getDate() <= 21).length;
+    const w3Done = scheduledContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 14 && new Date(i.scheduledDate).getDate() <= 21).length;
+    const w3Prog = scheduledContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 14 && new Date(i.scheduledDate).getDate() <= 21).length;
     
-    const w4Done = allContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 21).length;
-    const w4Prog = allContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 21).length;
+    const w4Done = scheduledContent.filter((i) => ['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 21).length;
+    const w4Prog = scheduledContent.filter((i) => !['SCHEDULED', 'PUBLISHED'].includes(i.status) && new Date(i.scheduledDate).getDate() > 21).length;
 
     const weeklyOutputData = [
       { week: 'Week 1', Completed: w1Done || 5, InProgress: w1Prog || 3 },

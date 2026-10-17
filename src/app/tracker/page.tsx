@@ -426,7 +426,7 @@ export default function ContentTrackerPage() {
       `"${item.client?.name || ''}"`,
       item.type,
       item.platform,
-      formatLocalDate(item.scheduledDate),
+      item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled',
       item.status,
       item.approvalOutcome || 'None',
       `"${item.assignee?.name || 'Unassigned'}"`,
@@ -664,7 +664,7 @@ export default function ContentTrackerPage() {
                   <td className="p-3 font-mono font-bold text-foreground">{item.type}</td>
                   <td className="p-3 font-bold text-foreground">{item.title}</td>
                   <td className="p-3 font-mono text-muted-foreground">{item.platform}</td>
-                  <td className="p-3 font-mono">{formatLocalDate(item.scheduledDate)}</td>
+                  <td className="p-3 font-mono">{item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}</td>
                   <td className="p-3">
                     <select
                       value={item.status}

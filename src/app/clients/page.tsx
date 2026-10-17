@@ -928,7 +928,7 @@ export default function ClientsPage() {
                       <div>
                         <span className="font-bold text-foreground block">{item.title}</span>
                         <span className="text-[10px] font-mono text-muted-foreground">
-                          {item.type} • {item.platform} • Scheduled {new Date(item.scheduledDate).toLocaleDateString()}
+                          {item.type} • {item.platform} • {item.scheduledDate ? `Scheduled ${new Date(item.scheduledDate).toLocaleDateString()}` : 'Unscheduled'}
                         </span>
                       </div>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FF3B00]/10 text-[#FF3B00]">

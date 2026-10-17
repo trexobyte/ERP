@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth';
 import { invalidateCache } from '@/lib/cache';
 import { toDatabaseDateString } from '@/lib/date-utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -22,8 +24,9 @@ export async function POST(req: Request) {
 
     const createdItems = await prisma.$transaction(
       items.map((item: any) => {
-        const dbDate = toDatabaseDateString(item.scheduledDate) || toDatabaseDateString(new Date())!;
-        const dateObj = new Date(dbDate);
+        const dbDate = item.scheduledDate ? toDatabaseDateString(item.scheduledDate) : null;
+        const dateObj = dbDate ? new Date(dbDate) : null;
+        const finalStatus = item.status || (dateObj ? 'SCHEDULED' : 'PLANNED');
 
         return prisma.contentItem.create({
           data: {
@@ -33,7 +36,7 @@ export async function POST(req: Request) {
             description: item.description || null,
             platform: item.platform || 'INSTAGRAM',
             scheduledDate: dateObj,
-            status: item.status || 'PLANNED',
+            status: finalStatus,
             assigneeId: item.assigneeId || null,
           },
           include: {

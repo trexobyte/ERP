@@ -178,7 +178,7 @@ export function QuickAddModal() {
           title: title.trim(),
           description: description ? description.trim() : null,
           platform: platform || 'INSTAGRAM',
-          scheduledDate: toLocalDateKey(scheduledDate) || getTodayLocalDateKey(),
+          scheduledDate: scheduledDate ? toLocalDateKey(scheduledDate) : null,
           status: status || 'PLANNED',
           assigneeId: assigneeId || null,
         }),
@@ -516,7 +516,6 @@ export function QuickAddModal() {
                       type="date"
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      required
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                     />
                   </div>
