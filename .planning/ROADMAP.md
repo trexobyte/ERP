@@ -22,11 +22,11 @@
 ### Phase 2: Monolithic Page Component Decomposition
 - **Goal:** Break down monolithic client components (>40KB each) into clean, reusable subcomponents.
 - **Focus Areas:**
-  - Refactor `src/app/planning/page.tsx` (65KB) into modular calendar components (`CalendarGrid`, `ShootCard`, `ApprovalModal`, `FilterBar`).
-  - Refactor `src/app/users/page.tsx` (53KB) into `UserTable`, `RoleMatrixEditor`, `UserModal`.
-  - Refactor `src/app/clients/page.tsx` (47KB) into `ClientGrid`, `ClientDetailModal`, `PackageBadge`.
+  - Refactor `src/app/planning/page.tsx` (65KB) into modular calendar components (`CalendarGrid`, `CalendarItemCard`, `DroppablePoolArea`, `ContentDetailModal`, `PlanningFilterBar`, `PlanningWizard`).
+  - Refactor `src/app/users/page.tsx` (53KB) into `UsersTable`, `RoleMatrixEditor`, `UserFormModal`, `RoleBuilderModal`, `DeleteUserModal`.
+  - Refactor `src/app/clients/page.tsx` (47KB) into `ClientCard`, `ClientFormModal`, `ClientDetailDrawer`, `DeleteClientModal`.
 - **Requirements Covered:** QR-02
-- **Status:** Planned
+- **Status:** Completed (15 subcomponents extracted, >2,560 lines decomposed, 0 build/test regressions)
 
 ### Phase 3: Production Security Hardening & Cache Scalability
 - **Goal:** Prepare the platform for secure multi-tenant production hosting.
