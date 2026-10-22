@@ -75,6 +75,6 @@
 ---
 
 ## 9. Quality, Reliability & Codebase Health (QR)
-- [ ] **QR-01:** Setup automated test runner (Vitest) for `src/lib/` utilities (`date-utils`, `permissions`, `cache`).
+- [x] **QR-01:** Setup automated test runner (Vitest) for `src/lib/` utilities (`date-utils`, `permissions`, `cache`, `deleted-clients`) and audit rollback verification.
 - [ ] **QR-02:** Refactor monolithic page components (`planning/page.tsx`, `users/page.tsx`, `clients/page.tsx`) into modular component directories.
 - [ ] **QR-03:** Centralize and decouple in-memory cache to support multi-instance / serverless deployments (Redis / Upstash).

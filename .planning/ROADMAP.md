@@ -17,7 +17,7 @@
   - Unit test `src/lib/permissions.ts` (RBAC permission evaluation and hierarchy boundaries).
   - Integration test `src/app/api/activity-log/undo/route.ts` (Snapshot restoration and soft-delete undo).
 - **Requirements Covered:** QR-01
-- **Status:** Planned
+- **Status:** Completed (41 tests passing across 5 test suites)
 
 ### Phase 2: Monolithic Page Component Decomposition
 - **Goal:** Break down monolithic client components (>40KB each) into clean, reusable subcomponents.

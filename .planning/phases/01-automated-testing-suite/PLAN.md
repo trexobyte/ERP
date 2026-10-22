@@ -97,11 +97,11 @@
 ---
 
 ## Success Criteria Checklist
-- [ ] `vitest` installed and configured in `vitest.config.ts` with `@/*` path aliases.
-- [ ] `npm test` script registered in `package.json`.
-- [ ] `src/lib/__tests__/date-utils.test.ts` covers all date conversions with 100% pass rate.
-- [ ] `src/lib/__tests__/permissions.test.ts` validates RBAC hierarchy.
-- [ ] `src/lib/__tests__/cache.test.ts` verifies TTL, empty-array bypass, and prefix invalidation.
-- [ ] `src/lib/__tests__/deleted-clients.test.ts` verifies soft-delete synchronization.
-- [ ] `src/app/api/activity-log/undo/__tests__/undo.test.ts` verifies rollback engine contracts.
-- [ ] `npm run build` succeeds cleanly.
+- [x] `vitest` installed and configured in `vitest.config.mts` with `@/*` path aliases.
+- [x] `npm test` script registered in `package.json`.
+- [x] `src/lib/__tests__/date-utils.test.ts` covers all date conversions with 100% pass rate.
+- [x] `src/lib/__tests__/permissions.test.ts` validates RBAC hierarchy.
+- [x] `src/lib/__tests__/cache.test.ts` verifies TTL, empty-array bypass, and prefix invalidation.
+- [x] `src/lib/__tests__/deleted-clients.test.ts` verifies soft-delete synchronization.
+- [x] `src/app/api/activity-log/undo/__tests__/undo.test.ts` verifies rollback engine contracts.
+- [x] `npm run build` succeeds cleanly.
