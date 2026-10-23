@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     }
 
     const cacheKey = `dashboard:${clientId || ''}:${department || ''}:${assigneeId || ''}:${contentType || ''}`;
-    const cached = getCached<any>(cacheKey);
+    const cached = await getCached<any>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -287,7 +287,7 @@ export async function GET(req: Request) {
       teamMembers,
     };
 
-    setCached(cacheKey, result, 30);
+    await setCached(cacheKey, result, 30);
     return NextResponse.json(result);
   } catch (error) {
     console.error('API Error GET /api/dashboard:', error);

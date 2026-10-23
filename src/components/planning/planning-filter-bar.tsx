@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { format, subMonths, addMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Plus, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Plus, User, Calendar } from 'lucide-react';
 
 interface PlanningFilterBarProps {
   currentMonth: Date;
@@ -29,6 +29,13 @@ export function PlanningFilterBar({
   onUnselectAllClients,
   onOpenQuickAdd,
 }: PlanningFilterBarProps) {
+  const handleExportMonthShoots = () => {
+    const month = currentMonth.getMonth() + 1;
+    const year = currentMonth.getFullYear();
+    const url = `/api/calendar/export?month=${month}&year=${year}`;
+    window.location.href = url;
+  };
+
   return (
     <div className="space-y-3">
       {/* Calendar Bar & Legend */}
@@ -74,6 +81,15 @@ export function PlanningFilterBar({
             />
             <User className="h-3.5 w-3.5 text-[#FF3B00]" /> My Items Only
           </label>
+
+          <button
+            onClick={handleExportMonthShoots}
+            className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-all clicky-btn cursor-pointer"
+            title="Download RFC 5545 iCalendar (.ics) for all scheduled shoots this month"
+          >
+            <Calendar className="h-3.5 w-3.5 text-[#FF3B00]" />
+            <span>Export Shoots (.ics)</span>
+          </button>
 
           <button
             onClick={onOpenQuickAdd}

@@ -28,7 +28,7 @@ export function UserFormModal({
   // Form states
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('');
   const [department, setDepartment] = useState('Social Media');
   const [roleId, setRoleId] = useState('');
   const [active, setActive] = useState(true);
@@ -50,7 +50,7 @@ export function UserFormModal({
     } else {
       setName('');
       setEmail('');
-      setPassword('password123');
+      setPassword('');
       setDepartment('Social Media');
       setRoleId(roles.length > 0 ? roles[0].id : '');
       setActive(true);
@@ -156,7 +156,7 @@ export function UserFormModal({
       payload.avatar = avatar || null;
       if (password.trim()) payload.password = password.trim();
     } else {
-      payload.password = password || 'password123';
+      if (password.trim()) payload.password = password.trim();
       payload.assignedClientIds = assignedClientIds;
     }
 
@@ -282,14 +282,14 @@ export function UserFormModal({
               <input
                 type="text"
                 required={!isEdit}
-                placeholder={isEdit ? 'Enter new password if changing' : 'e.g. password123'}
+                placeholder={isEdit ? 'Enter new password if changing' : 'Enter temporary account password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-mono"
               />
               {!isEdit && (
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Default is set to <code className="text-[#FF3B00] font-bold">password123</code>.
+                  Team member will use this initial password to sign in.
                 </p>
               )}
             </div>

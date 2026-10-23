@@ -163,8 +163,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       });
     }
 
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json(updated);
   } catch (error) {
     console.error('API Error PUT /api/clients/[id]:', error);
@@ -214,8 +214,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       });
     }
 
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/clients/[id]:', error);

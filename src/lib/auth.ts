@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getAuthSecret, isDevPasswordFallbackAllowed } from '@/lib/env';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -72,20 +73,31 @@ export const authOptions: NextAuthOptions = {
           console.warn('bcrypt.compare error:', e);
         }
 
-        // 3. Guaranteed agency fallback: password123 (case-insensitive & trimmed)
+        // 3. Optional agency fallback: password123 (strictly gated behind non-production flag)
         if (!isValid) {
           const lowerTrimmed = trimmedPassword.toLowerCase();
-          if (lowerTrimmed === 'password123' || rawPassword === 'password123') {
-            isValid = true;
-            // Auto-heal password in DB so bcrypt hash is valid
-            try {
-              const newHash = await bcrypt.hash('password123', 10);
-              await prisma.user.update({
-                where: { id: user.id },
-                data: { password: newHash },
-              });
-            } catch (healErr) {
-              console.warn('Auto-heal password failed:', healErr);
+          const isFallbackAttempt = lowerTrimmed === 'password123' || rawPassword === 'password123';
+
+          if (isFallbackAttempt) {
+            if (isDevPasswordFallbackAllowed()) {
+              isValid = true;
+              console.warn(
+                `DEV WARNING: User ${user.email} authenticated using development fallback password ('password123').`
+              );
+              // Auto-heal password in DB so bcrypt hash is valid in local development
+              try {
+                const newHash = await bcrypt.hash('password123', 10);
+                await prisma.user.update({
+                  where: { id: user.id },
+                  data: { password: newHash },
+                });
+              } catch (healErr) {
+                console.warn('Auto-heal password failed:', healErr);
+              }
+            } else {
+              console.warn(
+                `SECURITY ALERT: Fallback password ('password123') attempted for ${user.email} but was rejected. ALLOW_DEV_PASSWORD_FALLBACK is disabled or environment is production.`
+              );
             }
           }
         }
@@ -149,5 +161,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || 'trexobyte-erp-secret-key-kathmandu-2026-secure-jwt',
+  secret: getAuthSecret(),
 };

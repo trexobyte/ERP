@@ -35,9 +35,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       });
     }
 
-    invalidateCache('invoices');
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('invoices');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/invoices/[id]:', error);

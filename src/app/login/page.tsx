@@ -7,8 +7,12 @@ import { Sparkles, ArrowRight, ShieldCheck, Zap, Eye, EyeOff } from 'lucide-reac
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('ketan@trexobyte.com');
-  const [password, setPassword] = useState('password123');
+  const isDevOrDemo =
+    process.env.NODE_ENV !== 'production' ||
+    process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === 'true';
+
+  const [email, setEmail] = useState(isDevOrDemo ? 'ketan@trexobyte.com' : '');
+  const [password, setPassword] = useState(isDevOrDemo ? 'password123' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -145,49 +149,51 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Fill Buttons */}
-          <div className="border-t border-zinc-800/80 pt-4 space-y-2">
-            <span className="block text-[11px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
-              Demo Accounts Quick Fill:
-            </span>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDemoAccount('ketan@trexobyte.com')}
-                className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-              >
-                <span className="block font-bold text-zinc-200">Ketan Shrestha</span>
-                <span className="text-[10px] text-zinc-500">Super Admin</span>
-              </button>
+          {/* Quick Demo Fill Buttons (Hidden in production unless explicitly enabled) */}
+          {isDevOrDemo && (
+            <div className="border-t border-zinc-800/80 pt-4 space-y-2">
+              <span className="block text-[11px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+                Demo Accounts Quick Fill:
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('ketan@trexobyte.com')}
+                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
+                >
+                  <span className="block font-bold text-zinc-200">Ketan Shrestha</span>
+                  <span className="text-[10px] text-zinc-500">Super Admin</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoAccount('sneha@trexobyte.com')}
-                className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-              >
-                <span className="block font-bold text-zinc-200">Sneha Adhikari</span>
-                <span className="text-[10px] text-zinc-500">Social Media Mgr</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('sneha@trexobyte.com')}
+                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
+                >
+                  <span className="block font-bold text-zinc-200">Sneha Adhikari</span>
+                  <span className="text-[10px] text-zinc-500">Social Media Mgr</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoAccount('aashish@trexobyte.com')}
-                className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-              >
-                <span className="block font-bold text-zinc-200">Aashish Sharma</span>
-                <span className="text-[10px] text-zinc-500">Shoot Manager</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('aashish@trexobyte.com')}
+                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
+                >
+                  <span className="block font-bold text-zinc-200">Aashish Sharma</span>
+                  <span className="text-[10px] text-zinc-500">Shoot Manager</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoAccount('bikash@trexobyte.com')}
-                className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-              >
-                <span className="block font-bold text-zinc-200">Bikash Gurung</span>
-                <span className="text-[10px] text-zinc-500">Billing / Finance</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setDemoAccount('bikash@trexobyte.com')}
+                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
+                >
+                  <span className="block font-bold text-zinc-200">Bikash Gurung</span>
+                  <span className="text-[10px] text-zinc-500">Billing / Finance</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

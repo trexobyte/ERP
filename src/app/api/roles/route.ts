@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const cacheKey = 'roles:all';
-    const cached = getCached<any[]>(cacheKey);
+    const cached = await getCached<any[]>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -32,7 +32,7 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
 
-    setCached(cacheKey, roles, 60);
+    await setCached(cacheKey, roles, 60);
     return NextResponse.json(roles);
   } catch (error) {
     console.error('API Error GET /api/roles:', error);
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       });
     }
 
-    invalidateCache('roles');
+    await invalidateCache('roles');
     return NextResponse.json(role);
   } catch (error: any) {
     console.error('API Error POST /api/roles:', error);
@@ -111,7 +111,7 @@ export async function PUT(req: Request) {
       },
     });
 
-    invalidateCache('roles');
+    await invalidateCache('roles');
     return NextResponse.json(role);
   } catch (error: any) {
     console.error('API Error PUT /api/roles:', error);

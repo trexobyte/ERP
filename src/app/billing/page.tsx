@@ -17,7 +17,9 @@ import {
   Building2,
   X,
   Trash2,
+  FileText,
 } from 'lucide-react';
+import { InvoicePreviewModal } from '@/components/billing/invoice-preview-modal';
 import {
   BarChart,
   Bar,
@@ -59,6 +61,9 @@ export default function BillingPage() {
   // Delete Invoice Modal State
   const [invoiceToDelete, setInvoiceToDelete] = useState<any | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState(false);
+
+  // Preview Invoice Modal State
+  const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
   // Listen to Escape key to close modals
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -461,10 +466,20 @@ export default function BillingPage() {
                   </td>
                   <td className="p-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewInvoice(inv)}
+                        className="px-2.5 py-1 rounded border border-border bg-muted/60 text-foreground font-bold text-[11px] hover:bg-muted transition-colors flex items-center gap-1 cursor-pointer"
+                        title="View, Print & Download Invoice PDF"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-[#FF3B00]" />
+                        <span>PDF</span>
+                      </button>
+
                       {inv.status !== 'PAID' && (
                         <button
                           onClick={() => setSelectedInvoice(inv)}
-                          className="px-2.5 py-1 rounded bg-[#FF3B00] text-white font-bold text-[11px] hover:bg-[#e03400] transition-colors"
+                          className="px-2.5 py-1 rounded bg-[#FF3B00] text-white font-bold text-[11px] hover:bg-[#e03400] transition-colors cursor-pointer"
                         >
                           Record Payment
                         </button>
@@ -472,7 +487,7 @@ export default function BillingPage() {
                       <button
                         type="button"
                         onClick={() => setInvoiceToDelete(inv)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
+                        className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors cursor-pointer"
                         title="Delete Invoice"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -726,6 +741,13 @@ export default function BillingPage() {
           </div>
         </div>
       )}
+
+      {/* Invoice Preview & PDF Modal */}
+      <InvoicePreviewModal
+        invoice={previewInvoice}
+        isOpen={Boolean(previewInvoice)}
+        onClose={() => setPreviewInvoice(null)}
+      />
     </div>
   );
 }

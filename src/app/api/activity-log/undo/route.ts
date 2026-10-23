@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { unmarkClientDeleted } from '@/lib/deleted-clients';
+import { invalidateCache } from '@/lib/cache';
 
 export async function POST(req: Request) {
   try {
@@ -112,6 +113,16 @@ export async function POST(req: Request) {
         details: `Undid previous action: "${log.details}"`,
       },
     });
+
+    // Invalidate affected entity and dashboard caches
+    if (log.entityType === 'Client') {
+      await invalidateCache('clients');
+    } else if (log.entityType === 'Task') {
+      await invalidateCache('tasks');
+    } else if (log.entityType === 'ContentItem') {
+      await invalidateCache('content');
+    }
+    await invalidateCache('dashboard');
 
     return NextResponse.json({ success: true, message: `Successfully undone: ${log.details}` });
   } catch (error: any) {

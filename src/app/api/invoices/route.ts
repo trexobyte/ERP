@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const status = searchParams.get('status');
 
     const cacheKey = `invoices:${clientId || ''}:${status || ''}`;
-    const cached = getCached<any[]>(cacheKey);
+    const cached = await getCached<any[]>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     }
 
     if (invoices.length > 0) {
-      setCached(cacheKey, invoices, 30);
+      await setCached(cacheKey, invoices, 30);
     }
     return NextResponse.json(invoices);
   } catch (error) {
@@ -129,9 +129,9 @@ export async function POST(req: Request) {
       });
     }
 
-    invalidateCache('invoices');
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('invoices');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json(invoice);
   } catch (error: any) {
     console.error('API Error POST /api/invoices:', error);
@@ -165,9 +165,9 @@ export async function PUT(req: Request) {
       include: { client: true, payments: true },
     });
 
-    invalidateCache('invoices');
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('invoices');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error('API Error PUT /api/invoices:', error);
@@ -207,9 +207,9 @@ export async function DELETE(req: Request) {
       });
     }
 
-    invalidateCache('invoices');
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('invoices');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/invoices:', error);

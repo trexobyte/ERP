@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Edit2, MessageSquare, Send, Trash2, X } from 'lucide-react';
+import { Edit2, MessageSquare, Send, Trash2, X, FileText } from 'lucide-react';
+import { InvoicePreviewModal } from '@/components/billing/invoice-preview-modal';
 
 interface ClientDetailDrawerProps {
   client: any | null;
@@ -22,6 +23,7 @@ export function ClientDetailDrawer({
 }: ClientDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<'content' | 'billing' | 'comms'>('content');
   const [commNote, setCommNote] = useState('');
+  const [previewInvoice, setPreviewInvoice] = useState<any | null>(null);
 
   if (!isOpen || !client) return null;
 
@@ -163,17 +165,28 @@ export function ClientDetailDrawer({
                         Period: {inv.billingPeriod} • Amount: NPR {(Number(inv.amount) || 0).toLocaleString()}
                       </span>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        inv.status === 'PAID'
-                          ? 'bg-emerald-500/15 text-emerald-500'
-                          : inv.status === 'OVERDUE'
-                          ? 'bg-rose-500/15 text-rose-500'
-                          : 'bg-amber-500/15 text-amber-500'
-                      }`}
-                    >
-                      {inv.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewInvoice({ ...inv, client })}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded border border-border bg-card hover:bg-muted text-[10px] font-semibold text-foreground transition-colors cursor-pointer"
+                        title="View & Download Invoice PDF"
+                      >
+                        <FileText className="h-3 w-3 text-[#FF3B00]" />
+                        <span>PDF</span>
+                      </button>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          inv.status === 'PAID'
+                            ? 'bg-emerald-500/15 text-emerald-500'
+                            : inv.status === 'OVERDUE'
+                            ? 'bg-rose-500/15 text-rose-500'
+                            : 'bg-amber-500/15 text-amber-500'
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -215,6 +228,13 @@ export function ClientDetailDrawer({
           </div>
         )}
       </div>
+
+      {/* Invoice Preview & PDF Modal */}
+      <InvoicePreviewModal
+        invoice={previewInvoice}
+        isOpen={Boolean(previewInvoice)}
+        onClose={() => setPreviewInvoice(null)}
+      />
     </div>
   );
 }

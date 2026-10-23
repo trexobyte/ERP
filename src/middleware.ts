@@ -1,10 +1,11 @@
 import { withAuth } from 'next-auth/middleware';
+import { getAuthSecret } from '@/lib/env';
 
 export default withAuth({
   pages: {
     signIn: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'kEcdz2zeFok2+ALwhAfsXLE44lMSsJt/K25Ez6tbJOg=',
+  secret: getAuthSecret(),
 });
 
 export const config = {

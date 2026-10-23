@@ -61,9 +61,9 @@ export async function POST(req: Request) {
       });
     }
 
-    invalidateCache('content');
-    invalidateCache('tasks');
-    invalidateCache('dashboard');
+    await invalidateCache('content');
+    await invalidateCache('tasks');
+    await invalidateCache('dashboard');
     return NextResponse.json(createdItems);
   } catch (error: any) {
     console.error('API Error POST /api/content/bulk:', error);

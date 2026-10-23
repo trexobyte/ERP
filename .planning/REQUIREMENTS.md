@@ -20,7 +20,7 @@
 - [x] **PC-03:** Content item approval lifecycle: PLANNED, SHOT, EDITED, CLIENT_APPROVAL, SCHEDULED, PUBLISHED.
 - [x] **PC-04:** Zero-shift timezone handling for Asia/Kathmandu (UTC+5:45) ensuring calendar dates remain consistent across client and server.
 - [x] **PC-05:** Client feedback notes and approval outcome recording (APPROVED, DECLINED, REVISION_REQUESTED).
-- [ ] **PC-06:** Calendar ICS export or Google Calendar sync integration for scheduled shoots.
+- [x] **PC-06:** Calendar ICS export or Google Calendar sync integration for scheduled shoots.
 
 ---
 
@@ -53,7 +53,7 @@
 - [x] **IP-02:** Invoice lifecycle management: DRAFT, SENT, PAID, OVERDUE.
 - [x] **IP-03:** Payment receipt recording with partial payment tracking and recording staff attribution.
 - [x] **IP-04:** Resilient database connection retries (3 attempts) on invoice transactions.
-- [ ] **IP-05:** Automated PDF invoice generation with TrexoByte brand header.
+- [x] **IP-05:** Automated PDF invoice generation with TrexoByte brand header.
 
 ---
 
@@ -62,7 +62,7 @@
 - [x] **RB-02:** Preset roles: Super Admin, Manager, SMM, Content/Shoot Manager, Ads Manager, Client Communication, Billing.
 - [x] **RB-03:** Granular module permissions (`none`, `view`, `edit`, `full`) across 8 operational modules.
 - [x] **RB-04:** Live role impersonation dropdown in the UI shell for Super Admins to test permissions without session loss.
-- [ ] **RB-05:** Remove hardcoded development password fallback (`password123`) before production release.
+- [x] **RB-05:** Remove hardcoded development password fallback (`password123`) before production release (gated strictly behind non-production flags).
 
 ---
 
@@ -77,4 +77,4 @@
 ## 9. Quality, Reliability & Codebase Health (QR)
 - [x] **QR-01:** Setup automated test runner (Vitest) for `src/lib/` utilities (`date-utils`, `permissions`, `cache`, `deleted-clients`) and audit rollback verification.
 - [x] **QR-02:** Refactor monolithic page components (`planning/page.tsx`, `users/page.tsx`, `clients/page.tsx`) into modular component directories.
-- [ ] **QR-03:** Centralize and decouple in-memory cache to support multi-instance / serverless deployments (Redis / Upstash).
+- [x] **QR-03:** Centralize and decouple in-memory cache to support multi-instance / serverless deployments (Redis / Upstash).

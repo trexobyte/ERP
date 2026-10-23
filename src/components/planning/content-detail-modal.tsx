@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Check, Trash2, X } from 'lucide-react';
+import { Check, Trash2, X, Calendar, Download, ExternalLink } from 'lucide-react';
 import { toLocalDateKey } from '@/lib/date-utils';
+import { generateIcsCalendar, getGoogleCalendarUrl, downloadIcsFile, ShootCalendarEvent } from '@/lib/ics-generator';
 
 interface ContentDetailModalProps {
   item: any | null;
@@ -50,6 +51,50 @@ export function ContentDetailModal({
       setClientFeedbackNotes(item.clientFeedbackNotes || '');
     }
   }, [item, isOpen]);
+
+  const handleExportIcs = () => {
+    if (!item || !scheduledDate) return;
+    const client = clients.find((c) => c.id === clientId) || item.client;
+    const assignee = users.find((u) => u.id === assigneeId) || item.assignee;
+
+    const event: ShootCalendarEvent = {
+      id: item.id,
+      title: title || item.title,
+      description: clientFeedbackNotes || item.description,
+      clientName: client?.name,
+      clientColor: client?.color,
+      scheduledDate,
+      durationMinutes: 180,
+      location: item.location || 'Kathmandu, Nepal',
+      assigneeName: assignee?.name,
+      assigneeEmail: assignee?.email,
+      status,
+    };
+
+    const icsContent = generateIcsCalendar([event], `${client?.name || 'TrexoByte'} Shoot`);
+    downloadIcsFile(`shoot-${(title || 'session').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`, icsContent);
+  };
+
+  const handleGoogleCalendar = () => {
+    if (!item || !scheduledDate) return;
+    const client = clients.find((c) => c.id === clientId) || item.client;
+    const assignee = users.find((u) => u.id === assigneeId) || item.assignee;
+
+    const event: ShootCalendarEvent = {
+      id: item.id,
+      title: title || item.title,
+      description: clientFeedbackNotes || item.description,
+      clientName: client?.name,
+      scheduledDate,
+      durationMinutes: 180,
+      location: item.location || 'Kathmandu, Nepal',
+      assigneeName: assignee?.name,
+      status,
+    };
+
+    const url = getGoogleCalendarUrl(event);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   if (!isOpen || !item) return null;
 
@@ -286,6 +331,39 @@ export function ContentDetailModal({
                     className="w-full px-3 py-2 rounded-md border border-amber-500/40 bg-amber-500/5 focus:outline-hidden focus:ring-2 focus:ring-amber-500 text-foreground font-medium"
                   />
                 </div>
+
+                {/* Calendar Synchronization & ICS Export */}
+                {scheduledDate && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-mono">
+                        <Calendar className="h-3.5 w-3.5 text-[#FF3B00]" />
+                        Calendar Synchronization (RFC 5545)
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">Asia/Kathmandu (UTC+5:45)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleGoogleCalendar}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
+                        title="Open Google Calendar to add this event"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                        <span>Add to Google Calendar</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportIcs}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors cursor-pointer"
+                        title="Download RFC 5545 .ics file for Apple/Outlook/Google Calendar"
+                      >
+                        <Download className="h-3.5 w-3.5 text-[#FF3B00]" />
+                        <span>Download .ics File</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

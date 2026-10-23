@@ -2,8 +2,8 @@
 
 ## Milestones Summary
 - **Milestone v1.0 (Completed — Brownfield Baseline):** Core agency operations, dashboard, calendar, production tracker, client retainers, billing/payments, RBAC with live impersonation, and audit rollback engine.
-- **Milestone v1.1 (Upcoming — Stabilization & Architecture):** Automated testing harness, monolithic component decomposition, and production security hardening.
-- **Milestone v1.2 (Future — Client & External Integrations):** PDF invoice generation, calendar export sync, and client portal preview.
+- **Milestone v1.1 (Completed — Stabilization & Architecture):** Automated testing harness, monolithic component decomposition, and production security hardening (Phases 1, 2, 3).
+- **Milestone v1.2 (Completed — Client & External Integrations):** Automated branded PDF invoice generation, RFC 5545 iCalendar & Google Calendar sync (Phase 4).
 
 ---
 
@@ -35,7 +35,7 @@
   - Evaluate shared cache layer (Upstash Redis or Next.js tag-based revalidation) to ensure cache coherence across multi-instance serverless deployments.
   - Clean up database artifacts (`prisma/dev.db`) and solidify environment configuration.
 - **Requirements Covered:** RB-05, QR-03
-- **Status:** Planned
+- **Status:** Completed (Auth fallback gated behind dev flags, NextAuth secret unified, zero-dependency Upstash Redis REST cache adapter implemented, legacy SQLite artifacts untracked, production security headers added, 60/60 tests passing)
 
 ### Phase 4: Invoice PDF Generation & Shoot Calendar Exports
 - **Goal:** Enhance agency client communications with automated documentation.
@@ -43,4 +43,4 @@
   - Generate branded PDF invoices for clients with TrexoByte logo and billing details.
   - Export scheduled shoot sessions into standard `.ics` / Google Calendar formats.
 - **Requirements Covered:** IP-05, PC-06
-- **Status:** Planned
+- **Status:** Completed (Branded PDF invoice generation, RFC 5545 iCalendar & Google Calendar sync, preview modal, print stylesheet, 75/75 tests passing)

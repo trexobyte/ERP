@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
+import { isDevPasswordFallbackAllowed } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function GET() {
     }
 
     const cacheKey = 'users:all';
-    const cached = getCached<any[]>(cacheKey);
+    const cached = await getCached<any[]>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -44,7 +45,7 @@ export async function GET() {
       return rest;
     });
 
-    setCached(cacheKey, safeUsers, 30);
+    await setCached(cacheKey, safeUsers, 30);
     return NextResponse.json(safeUsers);
   } catch (error) {
     console.error('API Error GET /api/users:', error);
@@ -74,7 +75,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(password || 'password123', 10);
+    const defaultPass = isDevPasswordFallbackAllowed() ? 'password123' : Math.random().toString(36).slice(-12);
+    const hashedPassword = await bcrypt.hash(password || defaultPass, 10);
 
     let finalRoleId = roleId || null;
     if (!finalRoleId) {
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
       });
     }
 
-    invalidateCache('users');
+    await invalidateCache('users');
     const { password: _, ...safeUser } = newUser;
     return NextResponse.json(safeUser);
   } catch (error: any) {
@@ -166,7 +168,7 @@ export async function PUT(req: Request) {
       },
     });
 
-    invalidateCache('users');
+    await invalidateCache('users');
     const { password: _, ...safeUser } = updatedUser;
     return NextResponse.json(safeUser);
   } catch (error: any) {
@@ -213,7 +215,7 @@ export async function DELETE(req: Request) {
       });
     }
 
-    invalidateCache('users');
+    await invalidateCache('users');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Error DELETE /api/users:', error);

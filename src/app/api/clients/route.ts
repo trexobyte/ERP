@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     const cacheKey = 'clients:all';
-    const cached = getCached<any[]>(cacheKey);
+    const cached = await getCached<any[]>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }
@@ -98,7 +98,7 @@ export async function GET() {
     }
 
     if (Array.isArray(clients) && clients.length > 0) {
-      setCached(cacheKey, clients, 30);
+      await setCached(cacheKey, clients, 30);
     }
     return NextResponse.json(clients);
   } catch (error) {
@@ -169,8 +169,8 @@ export async function POST(req: Request) {
       });
     }
 
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json(newClient);
   } catch (error: any) {
     console.error('API Error POST /api/clients:', error);

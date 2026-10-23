@@ -79,9 +79,9 @@ export async function POST(req: Request) {
       }
     }
 
-    invalidateCache('invoices');
-    invalidateCache('clients');
-    invalidateCache('dashboard');
+    await invalidateCache('invoices');
+    await invalidateCache('clients');
+    await invalidateCache('dashboard');
     return NextResponse.json(payment);
   } catch (error: any) {
     console.error('API Error POST /api/invoices/payment:', error);
