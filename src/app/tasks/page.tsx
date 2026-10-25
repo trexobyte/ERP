@@ -15,6 +15,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragOverlay,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -38,6 +39,7 @@ import {
   X,
   GripVertical,
   Lock,
+  Check,
 } from 'lucide-react';
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
@@ -81,62 +83,86 @@ function SortableTaskCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`rounded-lg border border-border bg-background shadow-xs space-y-1.5 hover:border-[#FF3B00] transition-all select-none group min-w-0 ${
+      style={{
+        ...style,
+        touchAction: 'manipulation',
+      }}
+      {...listeners}
+      {...attributes}
+      className={`rounded-lg border border-border bg-background shadow-xs space-y-1.5 hover:border-[#FF3B00] transition-all select-none group min-w-0 cursor-grab active:cursor-grabbing ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] shadow-xl z-30' : 'opacity-100'
       }`}
     >
-      {/* Drag Handle Row */}
-      <div
-        {...listeners}
-        {...attributes}
-        className="flex items-center justify-between px-2 pt-2 md:px-3.5 md:pt-3.5 cursor-grab active:cursor-grabbing min-w-0"
-      >
-        <div className="flex items-center gap-1 min-w-0">
+      {/* Top Header Row: Grip + Urgency Badge on left, Compact Checkbox on right */}
+      <div className="flex items-center justify-between px-2 pt-2 md:px-3.5 md:pt-3.5 min-w-0 gap-1">
+        <div className="flex items-center gap-1 min-w-0 pointer-events-none">
           <GripVertical className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 shrink-0" />
           <span
-            className={`text-[8px] md:text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+            className={`text-[8px] md:text-[9px] font-black uppercase px-1.5 py-0.5 rounded leading-none shrink-0 ${
               task.urgency === 'URGENT' ? 'bg-[#FF3B00] text-white' : 'bg-muted text-muted-foreground'
             }`}
           >
             {task.urgency}
           </span>
         </div>
+
+        {/* Task Completion Control (Strictly 18px visible box with comfortable touch target, never stretched by global CSS) */}
         <div
+          className="flex items-center justify-center p-1 -m-1 cursor-pointer shrink-0 z-10"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckboxClick(task);
+          }}
+          title={task.status === 'DONE' ? 'Mark incomplete' : 'Mark complete'}
         >
-          <input
-            type="checkbox"
-            checked={task.status === 'DONE'}
-            onChange={() => onCheckboxClick(task)}
-            className="h-3.5 w-3.5 md:h-4 md:w-4 rounded border-input text-[#FF3B00] cursor-pointer"
-          />
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={task.status === 'DONE'}
+            aria-label={task.status === 'DONE' ? `Mark task "${task.title}" incomplete` : `Mark task "${task.title}" complete`}
+            className="no-tap-target flex items-center justify-center rounded-[4px] border transition-colors shrink-0 cursor-pointer"
+            style={{
+              width: '18px',
+              height: '18px',
+              minWidth: '18px',
+              minHeight: '18px',
+              maxWidth: '18px',
+              maxHeight: '18px',
+              backgroundColor: task.status === 'DONE' ? '#10B981' : 'transparent',
+              borderColor: task.status === 'DONE' ? '#10B981' : 'var(--border, #334155)',
+            }}
+          >
+            {task.status === 'DONE' && (
+              <Check className="h-3 w-3 text-white stroke-[3] shrink-0" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="px-2 md:px-3.5 min-w-0">
+      <div className="px-2 md:px-3.5 min-w-0 pointer-events-none">
         <h4 className="font-bold text-[10.5px] sm:text-xs md:text-xs text-foreground group-hover:text-[#FF3B00] transition-colors line-clamp-2 break-words leading-tight select-none min-w-0">
           {task.title}
         </h4>
       </div>
 
       {task.client && (
-        <div className="flex items-center gap-1 text-[8.5px] sm:text-[9.5px] md:text-[11px] font-medium text-muted-foreground px-2 md:px-3.5 min-w-0">
+        <div className="flex items-center gap-1 text-[8.5px] sm:text-[9.5px] md:text-[11px] font-medium text-muted-foreground px-2 md:px-3.5 min-w-0 pointer-events-none">
           <span className="h-1.5 w-1.5 md:h-2 md:w-2 rounded-full shrink-0" style={{ backgroundColor: task.client.color }} />
           <span className="truncate">{task.client.name}</span>
         </div>
       )}
 
       {task.contentItem && (
-        <span className="text-[#FF3B00] text-[8px] sm:text-[9px] md:text-[10px] flex items-center gap-1 font-mono truncate px-2 md:px-3.5 min-w-0">
+        <span className="text-[#FF3B00] text-[8px] sm:text-[9px] md:text-[10px] flex items-center gap-1 font-mono truncate px-2 md:px-3.5 min-w-0 pointer-events-none">
           <LinkIcon className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" /> <span className="truncate">Linked to {task.contentItem.type?.replace(/_/g, ' ')}</span>
         </span>
       )}
 
       {/* Footer */}
       <div className="px-2 pb-2 border-t border-border/40 pt-1 md:px-3.5 md:pb-3 md:pt-2 space-y-1">
-        <div className="flex items-center justify-between text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground font-mono gap-1 min-w-0">
+        <div className="flex items-center justify-between text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground font-mono gap-1 min-w-0 pointer-events-none">
           <span className="truncate">Due {formatLocalDate(task.dueDate)}</span>
           <span className="truncate max-w-[60px] md:max-w-[100px] text-right">{task.assignee?.name?.split(' ')[0] || task.assignee?.name}</span>
         </div>
@@ -146,6 +172,8 @@ function SortableTaskCard({
           <div
             className="block lg:hidden"
             onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <select
               value={task.status}
@@ -259,8 +287,8 @@ export default function TasksPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 300,
-      tolerance: 8,
+      delay: 220,
+      tolerance: 15,
     },
   });
 
@@ -268,7 +296,10 @@ export default function TasksPage() {
 
   const customCollisionDetection = (args: any) => {
     const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) return pointerCollisions;
+    if (pointerCollisions.length > 0) {
+      const nonSelf = pointerCollisions.filter((c) => c.id !== args.active.id);
+      if (nonSelf.length > 0) return nonSelf;
+    }
     return closestCenter(args);
   };
 
@@ -532,6 +563,25 @@ export default function TasksPage() {
       setTasks(finalTasks);
     }
 
+    // Accurately determine target column status whether dropped on a column or another card
+    const validStatuses = ['TO_DO', 'IN_PROGRESS', 'DONE'];
+    let targetStatus: string | null = null;
+    const overTask = tasks.find((t) => t.id === overId);
+    if (overTask) {
+      targetStatus = overTask.status;
+    } else if (validStatuses.includes(overId)) {
+      targetStatus = overId;
+    } else {
+      const ft = finalTasks.find((t) => t.id === activeId);
+      if (ft) targetStatus = ft.status;
+    }
+
+    if (targetStatus && dragStartStatus && targetStatus !== dragStartStatus) {
+      finalTasks = finalTasks.map((t) => (t.id === activeId ? { ...t, status: targetStatus! } : t));
+      setTasks(finalTasks);
+      updateTaskStatus(activeId, targetStatus);
+    }
+
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(
@@ -539,11 +589,6 @@ export default function TasksPage() {
           JSON.stringify(finalTasks.map((t) => t.id))
         );
       } catch {}
-    }
-
-    const finalTask = finalTasks.find((t) => t.id === activeId);
-    if (finalTask && dragStartStatus && finalTask.status !== dragStartStatus) {
-      updateTaskStatus(activeId, finalTask.status);
     }
 
     setDragStartStatus(null);
@@ -698,12 +743,33 @@ export default function TasksPage() {
                       >
                         <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                           {/* Quick Complete Checkbox */}
-                          <input
-                            type="checkbox"
-                            checked={task.status === 'DONE'}
-                            onChange={() => handleCheckboxClick(task)}
-                            className="h-4 w-4 mt-0.5 sm:mt-0 rounded border-input text-[#FF3B00] focus:ring-[#FF3B00] cursor-pointer shrink-0"
-                          />
+                          <div
+                            className="flex items-center justify-center p-0.5 cursor-pointer shrink-0 mt-0.5 sm:mt-0"
+                            onClick={() => handleCheckboxClick(task)}
+                            title={task.status === 'DONE' ? 'Mark incomplete' : 'Mark complete'}
+                          >
+                            <button
+                              type="button"
+                              role="checkbox"
+                              aria-checked={task.status === 'DONE'}
+                              aria-label={task.status === 'DONE' ? `Mark task "${task.title}" incomplete` : `Mark task "${task.title}" complete`}
+                              className="no-tap-target flex items-center justify-center rounded-[4px] border transition-colors shrink-0 cursor-pointer"
+                              style={{
+                                width: '18px',
+                                height: '18px',
+                                minWidth: '18px',
+                                minHeight: '18px',
+                                maxWidth: '18px',
+                                maxHeight: '18px',
+                                backgroundColor: task.status === 'DONE' ? '#10B981' : 'transparent',
+                                borderColor: task.status === 'DONE' ? '#10B981' : 'var(--border, #334155)',
+                              }}
+                            >
+                              {task.status === 'DONE' && (
+                                <Check className="h-3 w-3 text-white stroke-[3] shrink-0" />
+                              )}
+                            </button>
+                          </div>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -769,6 +835,11 @@ export default function TasksPage() {
       {viewMode === 'kanban' && (
         <DndContext
           autoScroll={false}
+          measuring={{
+            droppable: {
+              strategy: MeasuringStrategy.Always,
+            },
+          }}
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
@@ -886,7 +957,7 @@ export default function TasksPage() {
 
           <DragOverlay>
             {activeDragTask ? (
-              <div className="rounded-lg border border-[#FF3B00] bg-background p-3.5 shadow-2xl opacity-95 rotate-1 scale-105 space-y-2 pointer-events-none w-72">
+              <div className="rounded-lg border border-[#FF3B00] bg-background p-2.5 sm:p-3.5 shadow-2xl opacity-95 rotate-1 scale-105 space-y-2 pointer-events-none w-56 sm:w-72 max-w-[80vw]">
                 <div className="flex items-center justify-between">
                   <span
                     className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${

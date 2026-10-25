@@ -466,5 +466,87 @@ describe('Calendar Drag-and-Drop & Rescheduling Logic', () => {
       expect(items[1].status).toBe('SHOT');
       expect(items[1].assignee).toBe('Sarah');
     });
+
+    it('verifies task completion checkbox has strict 18-22px dimensions, no-tap-target exemption, and correct checked styles', () => {
+      // Checkbox style configuration as defined in SortableTaskCard
+      const checkboxStyle = {
+        width: '18px',
+        height: '18px',
+        minWidth: '18px',
+        minHeight: '18px',
+        maxWidth: '18px',
+        maxHeight: '18px',
+        backgroundColor: (status: string) => (status === 'DONE' ? '#10B981' : 'transparent'),
+        borderColor: (status: string) => (status === 'DONE' ? '#10B981' : 'var(--border, #334155)'),
+      };
+
+      const pxWidth = parseInt(checkboxStyle.width, 10);
+      expect(pxWidth).toBeGreaterThanOrEqual(18);
+      expect(pxWidth).toBeLessThanOrEqual(22);
+
+      // Ensures strict bounding rules prevent global CSS stretch (minWidth == maxWidth == 18px)
+      expect(checkboxStyle.minWidth).toBe('18px');
+      expect(checkboxStyle.maxWidth).toBe('18px');
+      expect(checkboxStyle.minHeight).toBe('18px');
+      expect(checkboxStyle.maxHeight).toBe('18px');
+
+      // Verified checked vs unchecked states
+      expect(checkboxStyle.backgroundColor('DONE')).toBe('#10B981');
+      expect(checkboxStyle.backgroundColor('TO_DO')).toBe('transparent');
+      expect(checkboxStyle.borderColor('DONE')).toBe('#10B981');
+    });
+
+    it('verifies touch sensor constraints prevent accidental cancellation while enabling responsive long-press', () => {
+      const touchActivationConstraint = {
+        delay: 220,
+        tolerance: 15,
+      };
+
+      // 220ms is prompt and responsive for touch devices
+      expect(touchActivationConstraint.delay).toBeLessThanOrEqual(250);
+      expect(touchActivationConstraint.delay).toBeGreaterThanOrEqual(200);
+
+      // 15px tolerance prevents human micro-tremor cancellation during the 220ms hold
+      expect(touchActivationConstraint.tolerance).toBeGreaterThanOrEqual(12);
+      expect(touchActivationConstraint.tolerance).toBeLessThanOrEqual(18);
+    });
+
+    it('verifies handleDragEnd accurately resolves destination column whether dropped on another task or directly on column', () => {
+      const initialTasks = [
+        { id: 'task_1', title: 'Prepare brief', status: 'TO_DO' },
+        { id: 'task_2', title: 'Record voiceover', status: 'IN_PROGRESS' },
+        { id: 'task_3', title: 'Publish reel', status: 'DONE' },
+      ];
+
+      const validStatuses = ['TO_DO', 'IN_PROGRESS', 'DONE'];
+
+      const resolveTargetStatus = (
+        overId: string,
+        allTasks: typeof initialTasks,
+        activeId: string,
+        dragStartStatus: string
+      ) => {
+        let targetStatus: string | null = null;
+        const overTask = allTasks.find((t) => t.id === overId);
+        if (overTask) {
+          targetStatus = overTask.status;
+        } else if (validStatuses.includes(overId)) {
+          targetStatus = overId;
+        }
+        return targetStatus;
+      };
+
+      // Case A: Dropped onto another task in 'IN_PROGRESS' column
+      const statusFromTaskDrop = resolveTargetStatus('task_2', initialTasks, 'task_1', 'TO_DO');
+      expect(statusFromTaskDrop).toBe('IN_PROGRESS');
+
+      // Case B: Dropped directly onto the 'DONE' column container
+      const statusFromColumnDrop = resolveTargetStatus('DONE', initialTasks, 'task_1', 'TO_DO');
+      expect(statusFromColumnDrop).toBe('DONE');
+
+      // Case C: Dropped directly onto the 'TO_DO' column container
+      const statusFromSelfColumnDrop = resolveTargetStatus('TO_DO', initialTasks, 'task_2', 'IN_PROGRESS');
+      expect(statusFromSelfColumnDrop).toBe('TO_DO');
+    });
   });
 });

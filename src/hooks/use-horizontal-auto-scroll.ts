@@ -73,7 +73,9 @@ export function useHorizontalAutoScroll<T extends HTMLElement = HTMLDivElement>(
       }
     };
 
-    // Use capture phase to ensure touchmove coordinates are never dropped or suppressed
+    // Use capture phase to ensure touch coordinates are captured immediately on touch and never dropped
+    window.addEventListener('pointerdown', handlePointerMove, { capture: true, passive: true });
+    window.addEventListener('touchstart', handlePointerMove, { capture: true, passive: true });
     window.addEventListener('pointermove', handlePointerMove, { capture: true, passive: true });
     window.addEventListener('touchmove', handlePointerMove, { capture: true, passive: true });
     document.addEventListener('touchmove', handlePointerMove, { capture: true, passive: true });
@@ -131,6 +133,8 @@ export function useHorizontalAutoScroll<T extends HTMLElement = HTMLDivElement>(
     animFrameRef.current = requestAnimationFrame(scrollLoop);
 
     return () => {
+      window.removeEventListener('pointerdown', handlePointerMove, { capture: true });
+      window.removeEventListener('touchstart', handlePointerMove, { capture: true });
       window.removeEventListener('pointermove', handlePointerMove, { capture: true });
       window.removeEventListener('touchmove', handlePointerMove, { capture: true });
       document.removeEventListener('touchmove', handlePointerMove, { capture: true });
