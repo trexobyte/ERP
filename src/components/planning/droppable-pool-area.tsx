@@ -25,6 +25,7 @@ export function DroppablePoolArea({
     <div
       ref={setNodeRef}
       id="pool"
+      data-droppable-id="pool"
       className={`p-4 rounded-xl border transition-all min-h-[140px] flex flex-col justify-between ${
         isOver
           ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-lg'

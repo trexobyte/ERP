@@ -15,6 +15,21 @@ interface AutoScrollOptions {
  * Temporarily disables CSS scroll-snapping during drag to eliminate browser compositor resistance.
  * Automatically halts immediately when drag terminates.
  */
+let globalLastPointer: { clientX: number; clientY: number } | null = null;
+if (typeof window !== 'undefined') {
+  const updateGlobalPointer = (e: PointerEvent | TouchEvent) => {
+    if ('touches' in e && e.touches.length > 0) {
+      globalLastPointer = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    } else if ('clientX' in e) {
+      globalLastPointer = { clientX: (e as PointerEvent).clientX, clientY: (e as PointerEvent).clientY };
+    }
+  };
+  window.addEventListener('pointerdown', updateGlobalPointer, { capture: true, passive: true });
+  window.addEventListener('touchstart', updateGlobalPointer, { capture: true, passive: true });
+  window.addEventListener('pointermove', updateGlobalPointer, { capture: true, passive: true });
+  window.addEventListener('touchmove', updateGlobalPointer, { capture: true, passive: true });
+}
+
 export function useHorizontalAutoScroll<T extends HTMLElement = HTMLDivElement>({
   isDragging,
   edgeThreshold,
@@ -40,6 +55,9 @@ export function useHorizontalAutoScroll<T extends HTMLElement = HTMLDivElement>(
       }
       return;
     }
+
+    // Initialize with last known pointer coordinates so auto-scroll begins immediately without requiring extra movement
+    pointerPosRef.current = globalLastPointer;
 
     // Disable CSS scroll-snapping during drag so programmatic scrolling is 100% free of compositor resistance
     if (container) {

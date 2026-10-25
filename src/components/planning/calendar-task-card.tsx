@@ -20,11 +20,12 @@ export function CalendarTaskCard({
   const draggableId = idPrefix ? `${idPrefix}-task-${task.id}` : `task-${task.id}`;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: draggableId,
-    data: { type: 'task', task, id: task.id },
+    data: { type: 'task', task, id: task.id, entityType: 'task' },
   });
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isDragging) return;
     onClick();
   };
 
@@ -47,7 +48,7 @@ export function CalendarTaskCard({
       style={{
         backgroundColor: bgColor,
         color: '#FFFFFF',
-        touchAction: 'manipulation',
+        touchAction: isDragging ? 'none' : 'manipulation',
       }}
       title={`Task: ${task.title} (${task.urgency}) - Due today. Hold to reschedule.`}
     >

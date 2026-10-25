@@ -32,6 +32,7 @@ export function DroppableThreeDayColumn({
   return (
     <div
       ref={setNodeRef}
+      data-droppable-id={`threeday-day-${dateKey}`}
       data-date={dateKey}
       className={`flex flex-col rounded-xl border transition-all min-h-[460px] min-w-0 ${
         isOver

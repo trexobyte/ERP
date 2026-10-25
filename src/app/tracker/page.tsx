@@ -15,6 +15,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragOverlay,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -262,8 +263,8 @@ export default function ContentTrackerPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 300,
-      tolerance: 8,
+      delay: 220,
+      tolerance: 15,
     },
   });
 
@@ -271,7 +272,10 @@ export default function ContentTrackerPage() {
 
   const customCollisionDetection = (args: any) => {
     const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) return pointerCollisions;
+    if (pointerCollisions.length > 0) {
+      const nonSelf = pointerCollisions.filter((c) => c.id !== args.active.id);
+      if (nonSelf.length > 0) return nonSelf;
+    }
     return closestCenter(args);
   };
 
@@ -664,6 +668,11 @@ export default function ContentTrackerPage() {
       {viewMode === 'kanban' && (
         <DndContext
           autoScroll={false}
+          measuring={{
+            droppable: {
+              strategy: MeasuringStrategy.Always,
+            },
+          }}
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}

@@ -20,11 +20,12 @@ export function CalendarItemCard({
   const draggableId = idPrefix ? `${idPrefix}-content-${item.id}` : `content-${item.id}`;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: draggableId,
-    data: { type: 'card', item, id: item.id },
+    data: { type: 'card', item, id: item.id, entityType: 'content' },
   });
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isDragging) return;
     onClick();
   };
 
@@ -45,7 +46,7 @@ export function CalendarItemCard({
       } ${isDragInProgress && !isDragging ? 'pointer-events-none' : ''}`}
       style={{
         backgroundColor: bgColor,
-        touchAction: 'manipulation',
+        touchAction: isDragging ? 'none' : 'manipulation',
       }}
       title={`${item.title} (${item.type}) - Hold to drag`}
     >

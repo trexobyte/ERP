@@ -33,6 +33,7 @@ export function DroppableWeekDayColumn({
   return (
     <div
       ref={setNodeRef}
+      data-droppable-id={`week-day-${dateKey}`}
       data-date={dateKey}
       className={`flex flex-col rounded-xl border transition-all min-h-[420px] md:min-h-[460px] ${
         isOver
@@ -111,8 +112,8 @@ export function CalendarWeekView({
   // Attach high-performance auto-scroller when user is dragging an item near the edge
   const scrollContainerRef = useHorizontalAutoScroll<HTMLDivElement>({
     isDragging: Boolean(activeDragItem),
-    edgeThreshold: 75,
-    maxSpeed: 28,
+    maxSpeed: 70,
+    minSpeed: 16,
   });
 
   // 7 days of the week containing currentDate (Sunday through Saturday)

@@ -38,6 +38,7 @@ export function DroppableDayCell({
   return (
     <div
       ref={setNodeRef}
+      data-droppable-id={`desktop-day-${dateKey}`}
       data-date={dateKey}
       onClick={onSelect}
       className={`min-h-32 p-2 transition-colors relative flex flex-col justify-between group cursor-pointer ${
@@ -112,6 +113,7 @@ function MobileDroppableDayCell({
     <button
       ref={setNodeRef}
       type="button"
+      data-droppable-id={`mobile-day-${dateKey}`}
       data-date={dateKey}
       onClick={onSelect}
       className={`min-h-[58px] sm:min-h-[64px] p-1 rounded-lg flex flex-col items-center justify-between transition-all select-none relative cursor-pointer border ${

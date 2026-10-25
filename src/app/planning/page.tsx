@@ -29,6 +29,7 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   Calendar as CalendarIcon,
@@ -117,8 +118,8 @@ export default function PlanningPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 300,
-      tolerance: 8,
+      delay: 220,
+      tolerance: 15,
     },
   });
 
@@ -242,27 +243,78 @@ export default function PlanningPage() {
   }, [selectedClientFilter, myItemsOnly, refreshTrigger]);
 
   const customCollisionDetection = (args: any) => {
-    // 1. Direct pointer within container
+    // 1. In browser environments, check element physically under pointer coordinates
+    // Immune to scroll desynchronization across auto-scrolling columns
+    if (typeof document !== 'undefined' && args.pointerCoordinates) {
+      const { x, y } = args.pointerCoordinates;
+      const elem = document.elementFromPoint(x, y);
+      if (elem) {
+        // Direct pool target
+        const poolEl = elem.closest('#pool, [data-droppable-id="pool"]');
+        if (poolEl) {
+          const poolContainer = args.droppableContainers.find((c: any) => c.id === 'pool');
+          if (poolContainer) return [{ id: 'pool', data: poolContainer.data }];
+        }
+
+        // Direct date target (column or cell)
+        const dayEl = elem.closest('[data-droppable-id], [data-date]');
+        if (dayEl) {
+          const droppableId = dayEl.getAttribute('data-droppable-id');
+          const dateKey = dayEl.getAttribute('data-date');
+
+          if (droppableId) {
+            const container = args.droppableContainers.find((c: any) => c.id === droppableId);
+            if (container) return [{ id: container.id, data: container.data }];
+          }
+          if (dateKey) {
+            const container = args.droppableContainers.find(
+              (c: any) => c.data?.current?.date === dateKey || String(c.id).endsWith(dateKey)
+            );
+            if (container) return [{ id: container.id, data: container.data }];
+          }
+        }
+      }
+
+      // If between borders, check live bounding rectangles of droppable containers
+      for (const container of args.droppableContainers) {
+        const node = container.node?.current;
+        if (!node) continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) continue; // ignore hidden elements (e.g. mobile vs desktop)
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          return [{ id: container.id, data: container.data }];
+        }
+      }
+    }
+
+    // Fallback for headless tests or outside bounds
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions.length > 0) {
       return pointerCollisions;
     }
-    // 2. Overlap intersection with closest target (largest overlap area)
     const rectCollisions = rectIntersection(args);
     if (rectCollisions.length > 0) {
       return rectCollisions;
     }
-    // 3. If dragging over whitespace/headers/out of bounds, DO NOT fallback to closestCenter.
     return [];
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const activeData = event.active.data.current;
     const activeIdStr = String(event.active.id);
-    const isTask = activeData?.type === 'task' || activeIdStr.includes('task-');
+
+    // Identify strictly by entityType or type in data, or specific prefix pattern
+    const isTask =
+      activeData?.entityType === 'task' ||
+      activeData?.type === 'task' ||
+      activeData?.task !== undefined ||
+      /^(?:(?:desktop|mobile|agenda|week|threeday)-)?task-/.test(activeIdStr);
 
     if (isTask) {
-      const rawTaskId = activeData?.task?.id || activeData?.id || activeIdStr.replace(/^.*task-/, '');
+      const rawTaskId =
+        activeData?.task?.id ||
+        activeData?.id ||
+        activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-task-/, '').replace(/^task-/, '');
       const task = actionTasks.find((t) => t.id === rawTaskId) || activeData?.task;
       if (task) {
         setActiveDragItem({
@@ -272,7 +324,10 @@ export default function PlanningPage() {
         });
       }
     } else {
-      const rawContentId = activeData?.item?.id || activeData?.id || activeIdStr.replace(/^.*content-/, '');
+      const rawContentId =
+        activeData?.item?.id ||
+        activeData?.id ||
+        activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-content-/, '').replace(/^content-/, '');
       const item = contentItems.find((i) => i.id === rawContentId) || activeData?.item;
       if (item) {
         setActiveDragItem({
@@ -456,12 +511,19 @@ export default function PlanningPage() {
 
     const targetDateKey = extractTargetDateKey(over);
 
-    // Identify whether the dragged item is a Task or a Content Deliverable
-    const isTask = activeData?.type === 'task' || activeIdStr.includes('task-');
+    // Identify strictly whether the dragged item is a Task or a Content Deliverable
+    const isTask =
+      activeData?.entityType === 'task' ||
+      activeData?.type === 'task' ||
+      activeData?.task !== undefined ||
+      /^(?:(?:desktop|mobile|agenda|week|threeday)-)?task-/.test(activeIdStr);
 
     // Case A: Action Tasks
     if (isTask) {
-      const rawTaskId = activeData?.task?.id || activeData?.id || activeIdStr.replace(/^.*task-/, '');
+      const rawTaskId =
+        activeData?.task?.id ||
+        activeData?.id ||
+        activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-task-/, '').replace(/^task-/, '');
 
       if (isPoolTarget) {
         setToastError('Tasks require a due date and cannot be unscheduled to the unassigned pool.');
@@ -474,7 +536,10 @@ export default function PlanningPage() {
     }
 
     // Case B: Content Items & Deliverables
-    const rawContentId = activeData?.item?.id || activeData?.id || activeIdStr.replace(/^.*content-/, '');
+    const rawContentId =
+      activeData?.item?.id ||
+      activeData?.id ||
+      activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-content-/, '').replace(/^content-/, '');
 
     if (isPoolTarget) {
       await handleRescheduleContent(rawContentId, null);
@@ -669,6 +734,11 @@ export default function PlanningPage() {
           {/* Calendar Views with DnD Context */}
           <DndContext
             sensors={sensors}
+            measuring={{
+              droppable: {
+                strategy: MeasuringStrategy.Always,
+              },
+            }}
             collisionDetection={customCollisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
