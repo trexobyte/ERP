@@ -8,16 +8,19 @@ interface CalendarItemCardProps {
   item: any;
   onClick: () => void;
   isDragInProgress?: boolean;
+  idPrefix?: string;
 }
 
 export function CalendarItemCard({
   item,
   onClick,
   isDragInProgress,
+  idPrefix,
 }: CalendarItemCardProps) {
+  const draggableId = idPrefix ? `${idPrefix}-content-${item.id}` : `content-${item.id}`;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: item.id,
-    data: { type: 'card', item },
+    id: draggableId,
+    data: { type: 'card', item, id: item.id },
   });
 
   const handleClick = (e: React.MouseEvent) => {

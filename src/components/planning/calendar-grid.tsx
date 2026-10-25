@@ -31,7 +31,7 @@ export function DroppableDayCell({
   children,
 }: DroppableDayCellProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: dateKey,
+    id: `desktop-day-${dateKey}`,
     data: { type: 'day', date: dateKey },
   });
 
@@ -104,7 +104,7 @@ function MobileDroppableDayCell({
   onSelect: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: dateKey,
+    id: `mobile-day-${dateKey}`,
     data: { type: 'day', date: dateKey },
   });
 
@@ -295,7 +295,7 @@ export function CalendarGrid({
 
               return (
                 <MobileDroppableDayCell
-                  key={dateKey}
+                  key={`mobile-cell-${dateKey}`}
                   day={day}
                   dateKey={dateKey}
                   isCurrentDay={isCurrentDay}
@@ -358,6 +358,8 @@ export function CalendarGrid({
               >
                 {/* Drag Item Card */}
                 <CalendarItemCard
+                  key={`agenda-content-${item.id}`}
+                  idPrefix="agenda"
                   item={item}
                   onClick={() => onItemClick(item)}
                   isDragInProgress={Boolean(activeDragItem)}
@@ -401,6 +403,8 @@ export function CalendarGrid({
               >
                 {/* Drag Task Card */}
                 <CalendarTaskCard
+                  key={`agenda-task-${task.id}`}
+                  idPrefix="agenda"
                   task={task}
                   onClick={() => router.push('/tasks')}
                   isDragInProgress={Boolean(activeDragItem)}
@@ -494,7 +498,7 @@ export function CalendarGrid({
 
             return (
               <DroppableDayCell
-                key={dateKey}
+                key={`desktop-cell-${dateKey}`}
                 day={day}
                 dateKey={dateKey}
                 isCurrentDay={isCurrentDay}
@@ -504,7 +508,8 @@ export function CalendarGrid({
                 {/* Scheduled Content Items */}
                 {dayItems.map((item) => (
                   <CalendarItemCard
-                    key={item.id}
+                    key={`desktop-content-${item.id}`}
+                    idPrefix="desktop"
                     item={item}
                     onClick={() => onItemClick(item)}
                     isDragInProgress={Boolean(activeDragItem)}
@@ -514,7 +519,8 @@ export function CalendarGrid({
                 {/* Action Tasks Due On This Date - Now Fully Draggable! */}
                 {dayTasks.map((task) => (
                   <CalendarTaskCard
-                    key={task.id}
+                    key={`desktop-task-${task.id}`}
+                    idPrefix="desktop"
                     task={task}
                     onClick={() => router.push('/tasks')}
                     isDragInProgress={Boolean(activeDragItem)}

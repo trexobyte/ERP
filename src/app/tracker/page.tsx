@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, getTodayLocalDateKey } from '@/lib/date-utils';
+import { useHorizontalAutoScroll } from '@/hooks/use-horizontal-auto-scroll';
 
 function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item: any; onStatusChange: (id: string, status: string) => void; columns: {id: string; label: string; color: string}[]; canEdit: boolean }) {
   const {
@@ -242,6 +243,13 @@ export default function ContentTrackerPage() {
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [mobileStageFilter, setMobileStageFilter] = useState('ALL');
+
+  // Fast edge-triggered horizontal auto-scroll when dragging cards across stages
+  const boardContainerRef = useHorizontalAutoScroll<HTMLDivElement>({
+    isDragging: Boolean(activeDragItem),
+    edgeThreshold: 80,
+    maxSpeed: 28,
+  });
 
   // Drag & drop sensors: MouseSensor for instant desktop drag, TouchSensor with delay to allow smooth page scroll
   const mouseSensor = useSensor(MouseSensor, {
@@ -661,9 +669,12 @@ export default function ContentTrackerPage() {
         >
           {/* Mobile scroll hint */}
           <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
-            ← Scroll to see all stages · Hold a card to drag ·
+            ← Scroll to see all stages · Hold a card to drag near edges to auto-scroll →
           </p>
-          <div className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-2 lg:gap-2.5">
+          <div
+            ref={boardContainerRef}
+            className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-2 lg:gap-2.5"
+          >
             {columns
               .filter((col) => mobileStageFilter === 'ALL' || mobileStageFilter === col.id)
               .map((col) => {

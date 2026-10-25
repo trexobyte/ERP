@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
+import { useHorizontalAutoScroll } from '@/hooks/use-horizontal-auto-scroll';
 
 function SortableTaskCard({
   task,
@@ -239,6 +240,13 @@ export default function TasksPage() {
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(() => !cachedTasks || cachedTasks.length === 0);
   const [activeDragTask, setActiveDragTask] = useState<any | null>(null);
+
+  // Fast edge-triggered horizontal auto-scroll when dragging tasks across columns
+  const boardContainerRef = useHorizontalAutoScroll<HTMLDivElement>({
+    isDragging: Boolean(activeDragTask),
+    edgeThreshold: 80,
+    maxSpeed: 28,
+  });
 
   // Drag & drop sensors: MouseSensor for desktop, TouchSensor with delay to allow smooth page scroll
   const mouseSensor = useSensor(MouseSensor, {
@@ -766,9 +774,12 @@ export default function TasksPage() {
         >
           {/* Mobile scroll hint */}
           <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
-            ← Scroll between columns · Use selector to move tasks ·
+            ← Scroll between columns · Drag near edges to auto-scroll · Use selector to move tasks →
           </p>
-          <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x">
+          <div
+            ref={boardContainerRef}
+            className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x"
+          >
             {[
               { key: 'TO_DO', label: 'To Do', color: '#64748B' },
               { key: 'IN_PROGRESS', label: 'In Progress', color: '#3B82F6' },

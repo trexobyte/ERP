@@ -258,14 +258,29 @@ export default function PlanningPage() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const activeData = event.active.data.current;
-    if (activeData?.type === 'task') {
-      setActiveDragItem({
-        ...activeData.task,
-        __isTask: true,
-      });
+    const activeIdStr = String(event.active.id);
+    const isTask = activeData?.type === 'task' || activeIdStr.includes('task-');
+
+    if (isTask) {
+      const rawTaskId = activeData?.task?.id || activeData?.id || activeIdStr.replace(/^.*task-/, '');
+      const task = actionTasks.find((t) => t.id === rawTaskId) || activeData?.task;
+      if (task) {
+        setActiveDragItem({
+          ...task,
+          id: task.id,
+          __isTask: true,
+        });
+      }
     } else {
-      const item = contentItems.find((i) => i.id === event.active.id) || activeData?.item;
-      if (item) setActiveDragItem(item);
+      const rawContentId = activeData?.item?.id || activeData?.id || activeIdStr.replace(/^.*content-/, '');
+      const item = contentItems.find((i) => i.id === rawContentId) || activeData?.item;
+      if (item) {
+        setActiveDragItem({
+          ...item,
+          id: item.id,
+          __isTask: false,
+        });
+      }
     }
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       try {
@@ -274,20 +289,31 @@ export default function PlanningPage() {
     }
   };
 
-  const handleRescheduleContent = async (itemId: string, newDateKey: string) => {
+  const handleRescheduleContent = async (itemId: string, newDateKey: string | null) => {
     if (!canEditCalendar) {
       setToastError('You do not have permission to edit or reschedule calendar deliverables.');
       return;
     }
-    const previousItems = [...contentItems];
+    // Deep clone snapshot to eliminate shared object references
+    const previousItems = contentItems.map((i) => ({ ...i }));
     const activeItem = contentItems.find((i) => i.id === itemId);
-    const nextStatus = activeItem?.status === 'PLANNED' ? 'SCHEDULED' : (activeItem?.status || 'SCHEDULED');
+    if (!activeItem) {
+      console.warn(`Content item ${itemId} not found in contentItems`);
+      return;
+    }
 
+    const nextStatus = newDateKey === null
+      ? 'PLANNED'
+      : activeItem.status === 'PLANNED'
+      ? 'SCHEDULED'
+      : (activeItem.status || 'SCHEDULED');
+
+    // Single-record isolated optimistic update
     setContentItems((prev) =>
       prev.map((item) =>
         item.id === itemId
           ? { ...item, scheduledDate: newDateKey, status: nextStatus }
-          : item
+          : { ...item }
       )
     );
 
@@ -310,7 +336,7 @@ export default function PlanningPage() {
 
       const updatedItem = await res.json();
       setContentItems((prev) => {
-        const next = prev.map((item) => (item.id === itemId ? updatedItem : item));
+        const next = prev.map((item) => (item.id === itemId ? { ...updatedItem } : { ...item }));
         setCachedContent(next);
         return next;
       });
@@ -327,11 +353,20 @@ export default function PlanningPage() {
       setToastError('You do not have permission to reschedule calendar tasks.');
       return;
     }
-    const previousTasks = [...actionTasks];
+    // Deep clone snapshot to eliminate shared object references
+    const previousTasks = actionTasks.map((t) => ({ ...t }));
+    const taskExists = actionTasks.some((t) => t.id === taskId);
+    if (!taskExists) {
+      console.warn(`Task ${taskId} not found in actionTasks`);
+      return;
+    }
 
+    // Single-record isolated optimistic update
     setActionTasks((prev) =>
       prev.map((t) =>
-        t.id === taskId ? { ...t, dueDate: newDateKey } : t
+        t.id === taskId
+          ? { ...t, dueDate: newDateKey }
+          : { ...t }
       )
     );
 
@@ -354,7 +389,7 @@ export default function PlanningPage() {
 
       const updatedTask = await res.json();
       setActionTasks((prev) => {
-        const next = prev.map((t) => (t.id === taskId ? updatedTask : t));
+        const next = prev.map((t) => (t.id === taskId ? { ...updatedTask } : { ...t }));
         setCachedTasks(next);
         return next;
       });
@@ -364,6 +399,35 @@ export default function PlanningPage() {
       setActionTasks(previousTasks);
       setToastError(err?.message || 'Failed to reschedule task');
     }
+  };
+
+  const extractTargetDateKey = (over: any): string | null => {
+    if (!over) return null;
+    const targetId = String(over.id);
+    const targetData = over.data?.current;
+
+    // Direct date field on data
+    if (targetData?.date) {
+      return toLocalDateKey(targetData.date);
+    }
+    // Dropped on a day cell or column
+    if (targetData?.type === 'day' && targetData.date) {
+      return toLocalDateKey(targetData.date);
+    }
+    // Dropped directly on another task card
+    if (targetData?.type === 'task' && targetData.task?.dueDate) {
+      return toLocalDateKey(targetData.task.dueDate);
+    }
+    // Dropped directly on another content deliverable card
+    if ((targetData?.type === 'card' || targetData?.type === 'content') && targetData.item?.scheduledDate) {
+      return toLocalDateKey(targetData.item.scheduledDate);
+    }
+    // Match YYYY-MM-DD pattern in targetId (e.g., 'week-day-2026-10-25', 'mobile-day-2026-10-25', '2026-10-25')
+    const match = targetId.match(/\b\d{4}-\d{2}-\d{2}\b/);
+    if (match) {
+      return match[0];
+    }
+    return null;
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -379,30 +443,25 @@ export default function PlanningPage() {
       return;
     }
 
-    const targetId = over.id as string;
+    const targetId = String(over.id);
     const targetData = over.data?.current;
     const activeData = active.data?.current;
+    const activeIdStr = String(active.id);
 
     const isPoolTarget =
       targetId === 'pool' ||
       targetId === 'unscheduled-pool' ||
       targetData?.type === 'pool' ||
-      (targetData?.type === 'card' && !targetData?.item?.scheduledDate);
+      ((targetData?.type === 'card' || targetData?.type === 'content') && !targetData?.item?.scheduledDate);
 
-    // Direct read of target date key - never recomputed from index math
-    const targetDateKey =
-      targetData?.type === 'day'
-        ? targetData.date || targetId
-        : targetData?.type === 'card'
-        ? (targetData.item?.scheduledDate ? toLocalDateKey(targetData.item.scheduledDate) : null)
-        : targetId.startsWith('20') && targetId.split('-').length === 3
-        ? targetId
-        : null;
+    const targetDateKey = extractTargetDateKey(over);
 
-    // A: Handling Action Tasks from Task Urgency Tracker
-    if (activeData?.type === 'task') {
-      const task = activeData.task;
-      const taskId = task.id;
+    // Identify whether the dragged item is a Task or a Content Deliverable
+    const isTask = activeData?.type === 'task' || activeIdStr.includes('task-');
+
+    // Case A: Action Tasks
+    if (isTask) {
+      const rawTaskId = activeData?.task?.id || activeData?.id || activeIdStr.replace(/^.*task-/, '');
 
       if (isPoolTarget) {
         setToastError('Tasks require a due date and cannot be unscheduled to the unassigned pool.');
@@ -410,57 +469,20 @@ export default function PlanningPage() {
       }
 
       if (!targetDateKey) return;
-      await handleRescheduleTask(taskId, targetDateKey);
+      await handleRescheduleTask(rawTaskId, targetDateKey);
       return;
     }
 
-    // B: Handling Content Items & Deliverables
-    const itemId = active.id as string;
-    const previousItems = [...contentItems];
+    // Case B: Content Items & Deliverables
+    const rawContentId = activeData?.item?.id || activeData?.id || activeIdStr.replace(/^.*content-/, '');
 
     if (isPoolTarget) {
-      // Optimistically move item to unscheduled pool
-      setContentItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId
-            ? { ...item, scheduledDate: null, status: 'PLANNED' }
-            : item
-        )
-      );
-
-      try {
-        const res = await fetch('/api/content', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: itemId,
-            scheduledDate: null,
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          const errMsg = errData.error || `Failed to unschedule task (${res.status})`;
-          setContentItems(previousItems);
-          setToastError(errMsg);
-          return;
-        }
-
-        const updatedItem = await res.json();
-        setContentItems((prev) =>
-          prev.map((item) => (item.id === itemId ? updatedItem : item))
-        );
-        triggerRefresh();
-      } catch (err: any) {
-        console.error('Drag unschedule API error:', err);
-        setContentItems(previousItems);
-        setToastError(err?.message || 'Failed to unschedule task');
-      }
+      await handleRescheduleContent(rawContentId, null);
       return;
     }
 
     if (!targetDateKey) return;
-    await handleRescheduleContent(itemId, targetDateKey);
+    await handleRescheduleContent(rawContentId, targetDateKey);
   };
 
   const handleSaveItemEdit = async (updatedData: any) => {

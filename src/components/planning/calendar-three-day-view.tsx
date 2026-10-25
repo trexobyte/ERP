@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isToday, addDays } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
-import { Plus, CheckSquare, Clock } from 'lucide-react';
+import { Plus, Clock } from 'lucide-react';
 import { toLocalDateKey } from '@/lib/date-utils';
 import { CalendarItemCard } from './calendar-item-card';
 import { CalendarTaskCard } from './calendar-task-card';
@@ -25,7 +25,7 @@ export function DroppableThreeDayColumn({
   children,
 }: DroppableThreeDayColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: dateKey,
+    id: `threeday-day-${dateKey}`,
     data: { type: 'day', date: dateKey },
   });
 
@@ -35,9 +35,9 @@ export function DroppableThreeDayColumn({
       data-date={dateKey}
       className={`flex flex-col rounded-xl border transition-all min-h-[460px] min-w-0 ${
         isOver
-          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md'
+          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md scale-[1.01]'
           : isCurrentDay
-          ? 'border-[#FF3B00]/40 bg-card shadow-xs'
+          ? 'border-[#FF3B00]/40 bg-card shadow-xs ring-1 ring-[#FF3B00]/20'
           : 'border-border bg-card'
       }`}
     >
@@ -48,7 +48,7 @@ export function DroppableThreeDayColumn({
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <span
             className={`text-xs font-black h-5.5 w-5.5 sm:h-6 sm:w-6 rounded-full flex items-center justify-center shrink-0 ${
-              isCurrentDay ? 'bg-[#FF3B00] text-white' : 'bg-muted text-foreground'
+              isCurrentDay ? 'bg-[#FF3B00] text-white shadow-2xs' : 'bg-muted text-foreground'
             }`}
           >
             {format(day, 'd')}
@@ -142,7 +142,7 @@ export function CalendarThreeDayView({
 
           return (
             <DroppableThreeDayColumn
-              key={dateKey}
+              key={`threeday-col-${dateKey}`}
               day={day}
               dateKey={dateKey}
               isCurrentDay={isCurrentDay}
@@ -151,7 +151,8 @@ export function CalendarThreeDayView({
               {/* Content Items */}
               {dayItems.map((item) => (
                 <CalendarItemCard
-                  key={item.id}
+                  key={`threeday-content-${item.id}`}
+                  idPrefix="threeday"
                   item={item}
                   onClick={() => onItemClick(item)}
                   isDragInProgress={Boolean(activeDragItem)}
@@ -161,7 +162,8 @@ export function CalendarThreeDayView({
               {/* Tasks - Now Fully Draggable! */}
               {dayTasks.map((task) => (
                 <CalendarTaskCard
-                  key={task.id}
+                  key={`threeday-task-${task.id}`}
+                  idPrefix="threeday"
                   task={task}
                   onClick={() => router.push('/tasks')}
                   isDragInProgress={Boolean(activeDragItem)}
