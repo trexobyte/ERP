@@ -41,7 +41,7 @@ import {
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, getTodayLocalDateKey } from '@/lib/date-utils';
 
-function SortableTrackerCard({ item }: { item: any }) {
+function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item: any; onStatusChange: (id: string, status: string) => void; columns: {id: string; label: string; color: string}[]; canEdit: boolean }) {
   const {
     attributes,
     listeners,
@@ -60,42 +60,48 @@ function SortableTrackerCard({ item }: { item: any }) {
   };
 
   const formattedType = item.type ? item.type.replace(/_/g, ' ') : '';
+  const currentCol = columns.find((c) => c.id === item.status);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      className={`rounded-lg border border-border bg-card p-2 sm:p-2.5 shadow-2xs hover:border-[#FF3B00] transition-all cursor-grab active:cursor-grabbing space-y-1.5 group select-none min-w-0 ${
+      className={`rounded-lg border border-border bg-card shadow-2xs hover:border-[#FF3B00] transition-all space-y-1.5 group select-none min-w-0 ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] z-30 shadow-xl' : 'opacity-100'
       }`}
     >
-      {/* Top Tag Row: Client Name on Left, Post Format on Right */}
-      <div className="flex items-center justify-between gap-1 pointer-events-none min-w-0">
-        <span
-          className="px-1.5 py-0.5 rounded text-[8.5px] font-black text-white uppercase truncate max-w-[95px] lg:max-w-[110px] shrink min-w-0 shadow-2xs leading-none"
-          style={{ backgroundColor: item.client?.color || '#FF3B00' }}
-          title={item.client?.name || 'Client'}
-        >
-          {item.client?.name || 'Client'}
-        </span>
-        <span className="text-[7.5px] lg:text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80 border border-border/40 leading-none">
-          {formattedType}
-        </span>
+      {/* Drag handle row — only area that triggers drag */}
+      <div
+        {...listeners}
+        {...attributes}
+        className="flex items-center gap-1 px-2 pt-2 cursor-grab active:cursor-grabbing min-w-0"
+      >
+        <GripVertical className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0" />
+        {/* Top Tag Row: Client Name on Left, Post Format on Right */}
+        <div className="flex items-center justify-between gap-1 min-w-0 flex-1">
+          <span
+            className="px-1.5 py-0.5 rounded text-[8.5px] font-black text-white uppercase truncate max-w-[85px] lg:max-w-[110px] shrink min-w-0 shadow-2xs leading-none"
+            style={{ backgroundColor: item.client?.color || '#FF3B00' }}
+            title={item.client?.name || 'Client'}
+          >
+            {item.client?.name || 'Client'}
+          </span>
+          <span className="text-[7.5px] lg:text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80 border border-border/40 leading-none">
+            {formattedType}
+          </span>
+        </div>
       </div>
 
-      {/* Card Title & Drag Icon */}
-      <div className="flex items-start gap-1 pointer-events-none min-w-0">
-        <GripVertical className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0 mt-0.5" />
-        <h4 className="font-bold text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0">
+      {/* Card Title */}
+      <div className="px-2 min-w-0" {...listeners} {...attributes} style={{ cursor: 'grab' }}>
+        <h4 className="font-bold text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0 select-none">
           {item.title}
         </h4>
       </div>
 
       {/* Approval Status Badge */}
       {item.approvalOutcome && (
-        <div className="flex items-center gap-1 text-[8.5px] font-bold pointer-events-none">
+        <div className="flex items-center gap-1 text-[8.5px] font-bold px-2">
           {item.approvalOutcome === 'APPROVED' && (
             <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 leading-none">
               <CheckCircle2 className="h-2.5 w-2.5 shrink-0" /> Approved
@@ -111,20 +117,43 @@ function SortableTrackerCard({ item }: { item: any }) {
 
       {/* Client Feedback Note */}
       {item.clientFeedbackNotes && (
-        <p className="text-[8.5px] text-muted-foreground bg-muted/60 border border-border/40 p-1 rounded italic line-clamp-2 pointer-events-none break-words leading-tight">
+        <p className="text-[8.5px] text-muted-foreground bg-muted/60 border border-border/40 p-1 rounded italic line-clamp-2 break-words leading-tight mx-2">
           "{item.clientFeedbackNotes}"
         </p>
       )}
 
-      {/* Footer: Date & Assignee */}
-      <div className="pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground font-mono pointer-events-none gap-1 min-w-0">
-        <span className="truncate">
-          {item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}
-        </span>
-        {item.assignee && (
-          <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[8.5px] truncate max-w-[65px]">
-            {item.assignee.name ? item.assignee.name.split(' ')[0] : 'Team'}
+      {/* Footer: Date, Assignee & Mobile Stage Selector */}
+      <div className="px-2 pb-2 border-t border-border/40 pt-1.5 space-y-1.5">
+        <div className="flex items-center justify-between text-[9px] text-muted-foreground font-mono gap-1 min-w-0">
+          <span className="truncate">
+            {item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}
           </span>
+          {item.assignee && (
+            <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[8.5px] truncate max-w-[65px]">
+              {item.assignee.name ? item.assignee.name.split(' ')[0] : 'Team'}
+            </span>
+          )}
+        </div>
+
+        {/* Mobile Quick Stage Mover — visible on touch devices, hidden on desktop hover */}
+        {canEdit && (
+          <div
+            className="block lg:hidden"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <select
+              value={item.status}
+              onChange={(e) => onStatusChange(item.id, e.target.value)}
+              className="w-full rounded border border-border bg-background px-2 py-1 text-[10px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
+              style={{ color: currentCol?.color || '#FF3B00' }}
+            >
+              {columns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
     </div>
@@ -630,6 +659,10 @@ export default function ContentTrackerPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
+          {/* Mobile scroll hint */}
+          <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
+            ← Scroll to see all stages · Hold a card to drag ·
+          </p>
           <div className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-2 lg:gap-2.5">
             {columns
               .filter((col) => mobileStageFilter === 'ALL' || mobileStageFilter === col.id)
@@ -638,7 +671,7 @@ export default function ContentTrackerPage() {
                 return (
                   <div
                     key={col.id}
-                    className="w-[85vw] min-w-[85vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
+                    className="w-[80vw] min-w-[80vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
                   >
                     <DroppableTrackerColumn
                       col={col}
@@ -646,12 +679,18 @@ export default function ContentTrackerPage() {
                       itemIds={colItems.map((i) => i.id)}
                     >
                       {colItems.map((item) => (
-                        <SortableTrackerCard key={item.id} item={item} />
+                        <SortableTrackerCard
+                          key={item.id}
+                          item={item}
+                          onStatusChange={updateItemStatus}
+                          columns={columns}
+                          canEdit={canEditTracker}
+                        />
                       ))}
                       {colItems.length === 0 && (
                         <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border/60 p-2 text-center">
                           <p className="text-[10px] font-semibold text-muted-foreground/60">
-                            Drop items here
+                            Drop here or use selector above
                           </p>
                         </div>
                       )}

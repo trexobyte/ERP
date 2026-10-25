@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+
 
 @layer base {
   :root {
@@ -75,9 +77,13 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   overflow-x: hidden;
   letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent rubber-band overscroll on iOS */
+  overscroll-behavior-y: none;
 }
 
 /* Brutalist sharp hover & click active effects */
@@ -116,4 +122,40 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
+}
+
+/* Scrollbar-none utility */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Minimum tap target enforcement on mobile */
+@media (max-width: 768px) {
+  button, a, [role="button"], input[type="checkbox"], input[type="radio"], select {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  /* Exception: tiny pill badges and icon-only slots don't need min size */
+  .no-tap-target {
+    min-height: unset;
+    min-width: unset;
+  }
+}
+
+/* Smooth momentum scrolling on iOS for horizontal Kanban/calendar scroll areas */
+.snap-x {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Touch-active state — subtle press feedback */
+@media (hover: none) {
+  .clicky-btn:active {
+    opacity: 0.85;
+    transform: scale(0.97);
+  }
 }

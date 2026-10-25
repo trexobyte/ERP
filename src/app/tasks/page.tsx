@@ -45,9 +45,13 @@ import { formatLocalDate, toLocalDateKey, getTodayLocalDateKey } from '@/lib/dat
 function SortableTaskCard({
   task,
   onCheckboxClick,
+  onStatusChange,
+  canEdit,
 }: {
   task: any;
   onCheckboxClick: (task: any) => void;
+  onStatusChange: (id: string, status: string) => void;
+  canEdit: boolean;
 }) {
   const {
     attributes,
@@ -66,18 +70,28 @@ function SortableTaskCard({
     transition,
   };
 
+  const statusOptions = [
+    { key: 'TO_DO', label: 'To Do', color: '#64748B' },
+    { key: 'IN_PROGRESS', label: 'In Progress', color: '#3B82F6' },
+    { key: 'DONE', label: 'Completed', color: '#10B981' },
+  ];
+  const currentStatus = statusOptions.find((s) => s.key === task.status);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className={`rounded-lg border border-border bg-background p-3.5 shadow-xs space-y-2 hover:border-[#FF3B00] transition-all cursor-grab active:cursor-grabbing select-none group ${
+      className={`rounded-lg border border-border bg-background shadow-xs space-y-2 hover:border-[#FF3B00] transition-all select-none group ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] shadow-xl z-30' : 'opacity-100'
       }`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 pointer-events-none">
+      {/* Drag Handle Row */}
+      <div
+        {...listeners}
+        {...attributes}
+        className="flex items-center justify-between px-3.5 pt-3.5 cursor-grab active:cursor-grabbing"
+      >
+        <div className="flex items-center gap-1.5">
           <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 shrink-0" />
           <span
             className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
@@ -100,26 +114,50 @@ function SortableTaskCard({
         </div>
       </div>
 
-      <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors pointer-events-none line-clamp-2 break-words leading-snug">
-        {task.title}
-      </h4>
+      <div className="px-3.5" {...listeners} {...attributes} style={{ cursor: 'grab' }}>
+        <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors line-clamp-2 break-words leading-snug select-none">
+          {task.title}
+        </h4>
+      </div>
 
       {task.client && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground pointer-events-none min-w-0">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground px-3.5">
           <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: task.client.color }} />
           <span className="truncate">{task.client.name}</span>
         </div>
       )}
 
       {task.contentItem && (
-        <span className="text-[#FF3B00] text-[10px] flex items-center gap-1 pointer-events-none font-mono truncate">
+        <span className="text-[#FF3B00] text-[10px] flex items-center gap-1 font-mono truncate px-3.5">
           <LinkIcon className="h-3 w-3 shrink-0" /> <span className="truncate">Linked to {task.contentItem.type?.replace(/_/g, ' ')}</span>
         </span>
       )}
 
-      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground font-mono pointer-events-none">
-        <span>Due {formatLocalDate(task.dueDate)}</span>
-        <span className="truncate max-w-[100px] text-right">{task.assignee?.name}</span>
+      {/* Footer */}
+      <div className="px-3.5 pb-3 border-t border-border/40 pt-2 space-y-2">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+          <span>Due {formatLocalDate(task.dueDate)}</span>
+          <span className="truncate max-w-[100px] text-right">{task.assignee?.name}</span>
+        </div>
+
+        {/* Mobile Quick Status Mover */}
+        {canEdit && (
+          <div
+            className="block lg:hidden"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <select
+              value={task.status}
+              onChange={(e) => onStatusChange(task.id, e.target.value)}
+              className="w-full rounded border border-border bg-background px-2 py-1 text-[10px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
+              style={{ color: currentStatus?.color || '#64748B' }}
+            >
+              {statusOptions.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -726,6 +764,10 @@ export default function TasksPage() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
+          {/* Mobile scroll hint */}
+          <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
+            ← Scroll between columns · Use selector to move tasks ·
+          </p>
           <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x">
             {[
               { key: 'TO_DO', label: 'To Do', color: '#64748B' },
@@ -735,7 +777,7 @@ export default function TasksPage() {
               const colTasks = tasks.filter((t) => t.status === col.key);
 
               return (
-                <div key={col.key} className="w-[85vw] sm:w-[320px] md:w-auto min-w-[85vw] sm:min-w-[320px] md:min-w-0 shrink-0 snap-start">
+                <div key={col.key} className="w-[80vw] sm:w-[320px] md:w-auto min-w-[80vw] sm:min-w-[320px] md:min-w-0 shrink-0 snap-start">
                   <DroppableTaskColumn
                     col={col}
                     count={colTasks.length}
@@ -746,6 +788,8 @@ export default function TasksPage() {
                         key={task.id}
                         task={task}
                         onCheckboxClick={handleCheckboxClick}
+                        onStatusChange={updateTaskStatus}
+                        canEdit={canEditTasks}
                       />
                     ))}
                     {colTasks.length === 0 && (

@@ -113,6 +113,28 @@ export function CalendarWeekView({
 
   return (
     <div className="space-y-3">
+      {/* Mobile horizontal day strip — shows week at a glance, highlights today */}
+      <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {daysInWeek.map((day) => {
+          const key = toLocalDateKey(day);
+          const today = isToday(day);
+          return (
+            <div
+              key={key}
+              className={`flex flex-col items-center shrink-0 px-2 py-1 rounded-lg text-center transition-all ${
+                today
+                  ? 'bg-[#FF3B00] text-white shadow-sm'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <span className="text-[9px] font-mono font-bold uppercase leading-none">{format(day, 'EEE')}</span>
+              <span className="text-sm font-black leading-tight">{format(day, 'd')}</span>
+            </div>
+          );
+        })}
+        <span className="text-[10px] text-muted-foreground/60 font-mono shrink-0 pl-1">← scroll →</span>
+      </div>
+
       {/* Mobile Horizontal Snap-scroll / Desktop 7-Column Grid */}
       <div className="flex overflow-x-auto pb-4 pt-1 snap-x scrollbar-thin md:grid md:grid-cols-7 gap-2.5">
         {daysInWeek.map((day) => {
@@ -140,7 +162,7 @@ export function CalendarWeekView({
           return (
             <div
               key={dateKey}
-              className="w-[78vw] min-w-[78vw] max-w-[280px] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
+              className="w-[76vw] min-w-[76vw] max-w-[280px] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
             >
               <DroppableWeekDayColumn
                 day={day}
@@ -187,7 +209,7 @@ export function CalendarWeekView({
                 ))}
 
                 {dayItems.length === 0 && dayTasks.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-28 border border-dashed border-border/50 rounded-lg text-center p-2 text-muted-foreground/60">
+                  <div className="flex flex-col items-center justify-center h-24 border border-dashed border-border/50 rounded-lg text-center p-2 text-muted-foreground/60">
                     <Clock className="h-4 w-4 mb-1 opacity-50" />
                     <span className="text-[10px]">No events</span>
                   </div>
