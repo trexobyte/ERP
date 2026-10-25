@@ -9,12 +9,21 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
+  subMonths,
+  addMonths,
+  subWeeks,
+  addWeeks,
+  subDays,
+  addDays,
+  format,
+  isSameMonth,
 } from 'date-fns';
 import {
   DndContext,
   pointerWithin,
   rectIntersection,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -25,10 +34,14 @@ import {
   Calendar as CalendarIcon,
   Wand2,
   Sparkles,
+  Lock,
 } from 'lucide-react';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { toLocalDateKey } from '@/lib/date-utils';
 import { DroppablePoolArea } from '@/components/planning/droppable-pool-area';
 import { CalendarGrid } from '@/components/planning/calendar-grid';
+import { CalendarWeekView } from '@/components/planning/calendar-week-view';
+import { CalendarThreeDayView } from '@/components/planning/calendar-three-day-view';
 import { PlanningFilterBar } from '@/components/planning/planning-filter-bar';
 import { ContentDetailModal } from '@/components/planning/content-detail-modal';
 import { PlanningWizard } from '@/components/planning/planning-wizard';
@@ -36,6 +49,8 @@ import { PlanningWizard } from '@/components/planning/planning-wizard';
 export default function PlanningPage() {
   const router = useRouter();
   const {
+    effectiveRoleName,
+    effectivePermissions,
     openQuickAdd,
     refreshTrigger,
     triggerRefresh,
@@ -47,10 +62,17 @@ export default function PlanningPage() {
     setCachedTasks,
   } = useImpersonation();
 
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewCalendar = hasPermission(effectivePermissions, 'calendar', 'view') || isSuperAdmin;
+  const canCreateCalendar = hasActionPermission(effectivePermissions, 'calendar', 'create') || isSuperAdmin;
+  const canEditCalendar = hasActionPermission(effectivePermissions, 'calendar', 'edit') || isSuperAdmin;
+  const canDeleteCalendar = hasActionPermission(effectivePermissions, 'calendar', 'delete') || isSuperAdmin;
+
   const [activeTab, setActiveTab] = useState<'calendar' | 'wizard'>('calendar');
 
-  // Calendar State - opens in current month
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Calendar State & View Modes (Month, Week, 3 Days)
+  const [calendarViewMode, setCalendarViewMode] = useState<'month' | 'week' | '3day'>('month');
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [contentItems, setContentItems] = useState<any[]>(() => {
     if (cachedContent && cachedContent.length > 0) return cachedContent;
     if (typeof window !== 'undefined') {
@@ -86,14 +108,21 @@ export default function PlanningPage() {
   // Active drag item for DragOverlay
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
 
-  // DnD Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  // DnD Sensors: MouseSensor for desktop, TouchSensor with delay to allow smooth scrolling on mobile
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 6,
+    },
+  });
+
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   useEffect(() => {
     if (toastError) {
@@ -237,6 +266,11 @@ export default function PlanningPage() {
     setActiveDragItem(null);
 
     if (!over) {
+      return;
+    }
+
+    if (!canEditCalendar) {
+      setToastError('You do not have permission to edit or reschedule calendar deliverables.');
       return;
     }
 
@@ -386,12 +420,52 @@ export default function PlanningPage() {
   };
 
   // Calendar dates matrix (Sunday through Saturday alignment)
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
   const daysInCalendar = eachDayOfInterval({
     start: startOfWeek(monthStart, { weekStartsOn: 0 }),
     end: endOfWeek(monthEnd, { weekStartsOn: 0 }),
   });
+
+  // Date Navigation handlers across all 3 view modes
+  const handlePrevDate = () => {
+    if (calendarViewMode === 'month') {
+      setCurrentDate((prev) => subMonths(prev, 1));
+    } else if (calendarViewMode === 'week') {
+      setCurrentDate((prev) => subWeeks(prev, 1));
+    } else {
+      setCurrentDate((prev) => subDays(prev, 3));
+    }
+  };
+
+  const handleNextDate = () => {
+    if (calendarViewMode === 'month') {
+      setCurrentDate((prev) => addMonths(prev, 1));
+    } else if (calendarViewMode === 'week') {
+      setCurrentDate((prev) => addWeeks(prev, 1));
+    } else {
+      setCurrentDate((prev) => addDays(prev, 3));
+    }
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Formatted date label for current view
+  let displayDateLabel = format(currentDate, 'MMMM yyyy');
+  if (calendarViewMode === 'week') {
+    const wStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+    const wEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+    displayDateLabel = isSameMonth(wStart, wEnd)
+      ? `${format(wStart, 'MMM d')} – ${format(wEnd, 'd, yyyy')}`
+      : `${format(wStart, 'MMM d')} – ${format(wEnd, 'MMM d, yyyy')}`;
+  } else if (calendarViewMode === '3day') {
+    const d3End = addDays(currentDate, 2);
+    displayDateLabel = isSameMonth(currentDate, d3End)
+      ? `${format(currentDate, 'MMM d')} – ${format(d3End, 'd, yyyy')}`
+      : `${format(currentDate, 'MMM d')} – ${format(d3End, 'MMM d, yyyy')}`;
+  }
 
   const toggleHideClient = (cId: string) => {
     if (hiddenClients.includes(cId)) {
@@ -409,6 +483,22 @@ export default function PlanningPage() {
   );
 
   const unscheduledItems = filteredContent.filter((item) => !item.scheduledDate);
+
+  if (!canViewCalendar) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view or manage content planning.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -435,16 +525,18 @@ export default function PlanningPage() {
           >
             <CalendarIcon className="h-4 w-4" /> Calendar View
           </button>
-          <button
-            onClick={() => setActiveTab('wizard')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'wizard'
-                ? 'bg-[#FF3B00] text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Wand2 className="h-4 w-4" /> Bulk Planning Wizard
-          </button>
+          {canCreateCalendar && (
+            <button
+              onClick={() => setActiveTab('wizard')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'wizard'
+                  ? 'bg-[#FF3B00] text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Wand2 className="h-4 w-4" /> Planning Wizard
+            </button>
+          )}
         </div>
       </div>
 
@@ -452,8 +544,14 @@ export default function PlanningPage() {
       {activeTab === 'calendar' && (
         <div className="space-y-4">
           <PlanningFilterBar
-            currentMonth={currentMonth}
-            onChangeMonth={setCurrentMonth}
+            currentMonth={currentDate}
+            onChangeMonth={setCurrentDate}
+            calendarViewMode={calendarViewMode}
+            onChangeViewMode={setCalendarViewMode}
+            currentDateLabel={displayDateLabel}
+            onPrevDate={handlePrevDate}
+            onNextDate={handleNextDate}
+            onToday={handleToday}
             myItemsOnly={myItemsOnly}
             onToggleMyItemsOnly={setMyItemsOnly}
             clients={clients}
@@ -464,7 +562,7 @@ export default function PlanningPage() {
             onOpenQuickAdd={() => openQuickAdd('content')}
           />
 
-          {/* Month Calendar Grid with DnD Context */}
+          {/* Calendar Views with DnD Context */}
           <DndContext
             sensors={sensors}
             collisionDetection={customCollisionDetection}
@@ -477,17 +575,48 @@ export default function PlanningPage() {
               isDragInProgress={Boolean(activeDragItem)}
             />
 
-            <CalendarGrid
-              daysInCalendar={daysInCalendar}
-              currentMonth={currentMonth}
-              filteredContent={filteredContent}
-              actionTasks={actionTasks}
-              selectedClientFilter={selectedClientFilter}
-              hiddenClients={hiddenClients}
-              activeDragItem={activeDragItem}
-              onItemClick={(item) => setSelectedItem(item)}
-              onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
-            />
+            {/* View 1: Month View (Google Calendar Inspired Compact Mobile Grid + Agenda) */}
+            {calendarViewMode === 'month' && (
+              <CalendarGrid
+                daysInCalendar={daysInCalendar}
+                currentMonth={currentDate}
+                filteredContent={filteredContent}
+                actionTasks={actionTasks}
+                selectedClientFilter={selectedClientFilter}
+                hiddenClients={hiddenClients}
+                activeDragItem={activeDragItem}
+                onItemClick={(item) => setSelectedItem(item)}
+                onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
+              />
+            )}
+
+            {/* View 2: Week View (7-Day Responsive Columns) */}
+            {calendarViewMode === 'week' && (
+              <CalendarWeekView
+                currentDate={currentDate}
+                filteredContent={filteredContent}
+                actionTasks={actionTasks}
+                selectedClientFilter={selectedClientFilter}
+                hiddenClients={hiddenClients}
+                activeDragItem={activeDragItem}
+                onItemClick={(item) => setSelectedItem(item)}
+                onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
+              />
+            )}
+
+            {/* View 3: Three-Day View (3 Consecutive Days Side-by-Side) */}
+            {calendarViewMode === '3day' && (
+              <CalendarThreeDayView
+                currentDate={currentDate}
+                filteredContent={filteredContent}
+                actionTasks={actionTasks}
+                selectedClientFilter={selectedClientFilter}
+                hiddenClients={hiddenClients}
+                activeDragItem={activeDragItem}
+                onItemClick={(item) => setSelectedItem(item)}
+                onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
+              />
+            )}
 
             {/* Draggable Overlay Card for Smooth Drag Feedback */}
             <DragOverlay dropAnimation={null}>
@@ -543,6 +672,8 @@ export default function PlanningPage() {
         onDelete={handleDeleteItem}
         isSaving={savingEdit}
         isDeleting={deletingEdit}
+        canEdit={canEditCalendar}
+        canDelete={canDeleteCalendar}
       />
 
       {/* Persistent Error Toast */}

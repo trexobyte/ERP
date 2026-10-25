@@ -5,10 +5,26 @@ import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 import { toDatabaseDateString } from '@/lib/date-utils';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+
+    if (!checkUserAction(caller, 'tracker', 'view') && !checkUserAction(caller, 'calendar', 'view')) {
+      return forbiddenResponse('You do not have permission to view content deliverables or calendar events.');
+    }
+
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get('clientId');
     const status = searchParams.get('status');
@@ -16,11 +32,7 @@ export async function GET(req: Request) {
     const type = searchParams.get('type');
     const myItemsOnly = searchParams.get('myItemsOnly') === 'true';
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const userId = (session.user as any)?.id;
+    const userId = caller.id;
 
     const cacheKey = `content:${clientId || ''}:${status || ''}:${assigneeId || ''}:${type || ''}:${myItemsOnly ? userId : ''}`;
     const cached = await getCached<any[]>(cacheKey);
@@ -118,11 +130,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'tracker', 'create') && !checkUserAction(caller, 'calendar', 'create')) {
+      return forbiddenResponse('You do not have permission to create content deliverables or shoots.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { clientId, isPersonal, type, title, description, platform, scheduledDate, status, assigneeId, clientFeedbackNotes, approvalOutcome, attachments } = body;
@@ -215,11 +230,14 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'tracker', 'edit') && !checkUserAction(caller, 'calendar', 'edit')) {
+      return forbiddenResponse('You do not have permission to edit content deliverables or shoots.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { id, clientId, isPersonal, type, title, description, platform, scheduledDate, status, assigneeId, clientFeedbackNotes, approvalOutcome, attachments } = body;
@@ -331,9 +349,12 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'tracker', 'delete') && !checkUserAction(caller, 'calendar', 'delete')) {
+      return forbiddenResponse('You do not have permission to delete content deliverables or shoots.');
     }
 
     const { searchParams } = new URL(req.url);

@@ -4,13 +4,23 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { generateIcsCalendar, ShootCalendarEvent } from '@/lib/ics-generator';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'calendar', 'view')) {
+      return forbiddenResponse('You do not have permission to export calendar events.');
     }
 
     const { searchParams } = new URL(req.url);

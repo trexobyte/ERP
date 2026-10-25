@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SessionProvider, useSession } from 'next-auth/react';
-import { parsePermissions, PermissionsMap } from '@/lib/permissions';
+import { parsePermissions, PermissionsMap, ROLE_PERMISSIONS_PRESETS } from '@/lib/permissions';
 import { PersonalProfileModal } from '@/components/personal-profile-modal';
 
 interface ImpersonationContextType {
@@ -79,95 +79,13 @@ export function useImpersonation() {
   return useContext(ImpersonationContext);
 }
 
-const ROLE_PERMISSIONS_PRESETS: Record<string, PermissionsMap> = {
-  'Super Admin': {
-    dashboard: 'full',
-    calendar: 'full',
-    clients: 'full',
-    tracker: 'full',
-    tasks: 'full',
-    billing: 'full',
-    reports: 'full',
-    users: 'full',
-  },
-  Manager: {
-    dashboard: 'full',
-    calendar: 'full',
-    clients: 'edit',
-    tracker: 'full',
-    tasks: 'full',
-    billing: 'view',
-    reports: 'full',
-    users: 'view',
-  },
-  'Social Media Manager': {
-    dashboard: 'view',
-    calendar: 'edit',
-    clients: 'view',
-    tracker: 'edit',
-    tasks: 'edit',
-    billing: 'none',
-    reports: 'view',
-    users: 'none',
-  },
-  'Content/Shoot Manager': {
-    dashboard: 'view',
-    calendar: 'full',
-    clients: 'view',
-    tracker: 'full',
-    tasks: 'full',
-    billing: 'none',
-    reports: 'view',
-    users: 'none',
-  },
-  'Ads Manager': {
-    dashboard: 'view',
-    calendar: 'edit',
-    clients: 'view',
-    tracker: 'edit',
-    tasks: 'edit',
-    billing: 'none',
-    reports: 'view',
-    users: 'none',
-  },
-  'Client Communication': {
-    dashboard: 'view',
-    calendar: 'view',
-    clients: 'edit',
-    tracker: 'edit',
-    tasks: 'edit',
-    billing: 'none',
-    reports: 'view',
-    users: 'none',
-  },
-  'Billing/Finance': {
-    dashboard: 'view',
-    calendar: 'view',
-    clients: 'view',
-    tracker: 'view',
-    tasks: 'view',
-    billing: 'full',
-    reports: 'full',
-    users: 'none',
-  },
-  Viewer: {
-    dashboard: 'view',
-    calendar: 'view',
-    clients: 'view',
-    tracker: 'view',
-    tasks: 'view',
-    billing: 'none',
-    reports: 'none',
-    users: 'none',
-  },
-};
-
 function AppStateBridge({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const [impersonatedRoleName, setImpersonatedRoleName] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'content' | 'task' | 'shoot'>('content');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [liveUser, setLiveUser] = useState<{ roleName?: string; permissions?: PermissionsMap } | null>(null);
 
   const syncChannelRef = React.useRef<BroadcastChannel | null>(null);
 
@@ -223,10 +141,33 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const userRole = (session?.user as any)?.roleName || (session ? 'Super Admin' : 'Guest');
+  // 3. Live user sync: fetch current permissions and role in real-time
+  useEffect(() => {
+    if (!session?.user) {
+      setLiveUser(null);
+      return;
+    }
+
+    fetch('/api/users/me')
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && (data.permissions || data.roleName)) {
+          setLiveUser({
+            roleName: data.roleName,
+            permissions: data.permissions,
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to sync live user permissions:', err));
+  }, [session, refreshTrigger]);
+
+  const userRole = liveUser?.roleName || (session?.user as any)?.roleName || (session ? 'Super Admin' : 'Guest');
   const rawPerms = (session?.user as any)?.permissions;
 
-  const actualPermissions = parsePermissions(rawPerms);
+  const actualPermissions =
+    liveUser?.permissions && Object.keys(liveUser.permissions).length > 0
+      ? liveUser.permissions
+      : parsePermissions(rawPerms);
   const hasActualPermissions = Object.keys(actualPermissions).length > 0;
 
   const effectiveRoleName = impersonatedRoleName || userRole;

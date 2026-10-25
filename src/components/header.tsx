@@ -25,6 +25,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { AuditHistoryModal } from '@/components/audit-history-modal';
+import { hasPermission } from '@/lib/permissions';
 
 export function Header() {
   const { data: session } = useSession();
@@ -33,6 +34,7 @@ export function Header() {
   const {
     openQuickAdd,
     effectiveRoleName,
+    effectivePermissions,
     impersonatedRoleName,
     setImpersonatedRole,
     openProfileModal,
@@ -360,12 +362,12 @@ export function Header() {
           </div>
         )}
 
-        {/* Changes Made / Audit History Button - Super Admin Only */}
-        {(effectiveRoleName === 'Super Admin' || (session?.user as any)?.roleName === 'Super Admin') && (
+        {/* Changes Made / Audit History Button */}
+        {(effectiveRoleName === 'Super Admin' || (session?.user as any)?.roleName === 'Super Admin' || hasPermission(effectivePermissions, 'audit', 'view')) && (
           <button
             onClick={() => setShowHistoryModal(true)}
             className="hidden sm:flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted hover:border-[#FF3B00]/40 transition-all cursor-pointer"
-            title="View Edit History & Changes Made (Super Admin Only)"
+            title="View Edit History & Changes Made"
           >
             <History className="h-4 w-4 text-[#FF3B00]" />
             <span className="hidden md:inline">Changes Made</span>

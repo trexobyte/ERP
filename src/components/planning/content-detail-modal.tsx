@@ -15,6 +15,8 @@ interface ContentDetailModalProps {
   onDelete: (itemId: string) => Promise<void>;
   isSaving: boolean;
   isDeleting: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function ContentDetailModal({
@@ -27,6 +29,8 @@ export function ContentDetailModal({
   onDelete,
   isSaving,
   isDeleting,
+  canEdit = true,
+  canDelete = true,
 }: ContentDetailModalProps) {
   const [title, setTitle] = useState('');
   const [isPersonal, setIsPersonal] = useState(false);
@@ -369,15 +373,17 @@ export function ContentDetailModal({
           </div>
 
           <div className="sticky bottom-0 bg-card border-t border-border pt-3 mt-auto shrink-0 flex justify-between items-center">
-            <button
-              type="button"
-              onClick={() => onDelete(item.id)}
-              disabled={isDeleting}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-red-500 hover:bg-red-500/10 font-bold transition-colors cursor-pointer"
-            >
-              <Trash2 className="h-4 w-4" />
-              {isDeleting ? 'Deleting...' : 'Delete Deliverable'}
-            </button>
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(item.id)}
+                disabled={isDeleting}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-red-500 hover:bg-red-500/10 font-bold transition-colors cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? 'Deleting...' : 'Delete Deliverable'}
+              </button>
+            ) : <div />}
 
             <div className="flex items-center gap-2">
               <button
@@ -385,16 +391,18 @@ export function ContentDetailModal({
                 onClick={onClose}
                 className="px-4 py-2 rounded-md font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
               >
-                Cancel
+                {canEdit ? 'Cancel' : 'Close'}
               </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="flex items-center gap-2 px-5 py-2 rounded-md bg-[#FF3B00] text-white font-bold hover:bg-[#e03400] transition-all shadow-md clicky-btn cursor-pointer"
-              >
-                {isSaving ? 'Saving...' : 'Save Changes'}
-                <Check className="h-4 w-4" />
-              </button>
+              {canEdit && (
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-5 py-2 rounded-md bg-[#FF3B00] text-white font-bold hover:bg-[#e03400] transition-all shadow-md clicky-btn cursor-pointer"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                  <Check className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
         </form>

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useImpersonation } from '@/components/providers';
-import { Camera, Plus, Search, Shield, ShieldAlert, Users2 } from 'lucide-react';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
+import { Camera, Plus, Search, Shield, ShieldAlert, Users2, Lock } from 'lucide-react';
 import { UsersTable } from '@/components/users/users-table';
 import { RoleMatrixEditor } from '@/components/users/role-matrix-editor';
 import { UserFormModal } from '@/components/users/user-form-modal';
@@ -25,6 +26,7 @@ export default function UsersPage() {
   const { data: session } = useSession();
   const {
     effectiveRoleName,
+    effectivePermissions,
     refreshTrigger,
     triggerRefresh,
     openProfileModal,
@@ -34,6 +36,10 @@ export default function UsersPage() {
     cachedRoles,
     setCachedRoles,
   } = useImpersonation();
+
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewUsers = hasPermission(effectivePermissions, 'users', 'view') || isSuperAdmin;
+  const canCreateUsers = hasActionPermission(effectivePermissions, 'users', 'create') || isSuperAdmin;
 
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [roles, setRoles] = useState<any[]>(() =>
@@ -52,6 +58,7 @@ export default function UsersPage() {
   // Modals
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [submittingUser, setSubmittingUser] = useState(false);
+  const [userFormTab, setUserFormTab] = useState<'profile' | 'permissions'>('profile');
 
   const [userToEdit, setUserToEdit] = useState<any | null>(null);
   const [savingUserEdit, setSavingUserEdit] = useState(false);
@@ -255,6 +262,22 @@ export default function UsersPage() {
         u.email === session?.user?.email
     ) || users[0];
 
+  if (!canViewUsers) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view or manage team members.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Mode Switch */}
@@ -379,19 +402,32 @@ export default function UsersPage() {
               <option value="Billing">Billing</option>
             </select>
 
-            <button
-              onClick={() => setShowAddUserModal(true)}
-              className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] clicky-btn cursor-pointer shrink-0"
-            >
-              <Plus className="h-4 w-4 stroke-[3]" /> Add User
-            </button>
+            {canCreateUsers && (
+              <button
+                onClick={() => {
+                  setUserFormTab('profile');
+                  setShowAddUserModal(true);
+                }}
+                className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#e03400] clicky-btn cursor-pointer shrink-0"
+              >
+                <Plus className="h-4 w-4 stroke-[3]" /> Add User
+              </button>
+            )}
           </div>
 
           <UsersTable
             users={filteredUsers}
             loading={loading}
-            onEditUser={(u) => setUserToEdit(u)}
+            onEditUser={(u) => {
+              setUserToEdit(u);
+              setUserFormTab('profile');
+            }}
+            onEditPermissions={(u) => {
+              setUserToEdit(u);
+              setUserFormTab('permissions');
+            }}
             onRequestDeleteUser={(u) => setUserToDelete(u)}
+            isSuperAdmin={isSuperAdmin}
           />
         </div>
       )}
@@ -412,6 +448,8 @@ export default function UsersPage() {
         clients={clients}
         onSubmit={handleCreateUser}
         isSubmitting={submittingUser}
+        initialTab={userFormTab}
+        isSuperAdmin={isSuperAdmin}
       />
 
       {/* EDIT USER MODAL */}
@@ -423,7 +461,10 @@ export default function UsersPage() {
         clients={clients}
         onSubmit={handleUpdateUser}
         isSubmitting={savingUserEdit}
+        initialTab={userFormTab}
+        isSuperAdmin={isSuperAdmin}
       />
+
 
       {/* ROLE BUILDER MODAL */}
       <RoleBuilderModal

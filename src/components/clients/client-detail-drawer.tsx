@@ -9,6 +9,8 @@ interface ClientDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   isSuperAdmin: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onOpenEdit: (client: any) => void;
   onRequestDelete: (client: any) => void;
 }
@@ -18,6 +20,8 @@ export function ClientDetailDrawer({
   isOpen,
   onClose,
   isSuperAdmin,
+  canEdit = true,
+  canDelete = true,
   onOpenEdit,
   onRequestDelete,
 }: ClientDetailDrawerProps) {
@@ -32,24 +36,24 @@ export function ClientDetailDrawer({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-200"
     >
-      <div className="w-full max-w-3xl bg-card border-2 border-border shadow-2xl rounded-xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-3xl bg-card border-2 border-border shadow-2xl rounded-xl p-3.5 sm:p-6 space-y-4 sm:space-y-6 max-h-[92dvh] overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-start border-b border-border pb-4">
-          <div className="flex items-center gap-4">
+        <div className="flex justify-between items-start border-b border-border pb-3 sm:pb-4 gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
             <div
-              className="h-12 w-12 rounded-xl flex items-center justify-center font-black text-white text-xl shadow-md"
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center font-black text-white text-base sm:text-xl shadow-md shrink-0"
               style={{ backgroundColor: client.color || '#FF3B00' }}
             >
               {(client.name || 'CL').slice(0, 2).toUpperCase()}
             </div>
-            <div>
-              <h2 className="text-xl font-black text-foreground">{client.name}</h2>
-              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-0.5">
-                <span>{client.servicePackage}</span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl font-black text-foreground truncate">{client.name}</h2>
+              <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono text-muted-foreground mt-0.5 truncate">
+                <span className="truncate">{client.servicePackage}</span>
                 <span>•</span>
-                <span className="font-bold text-[#FF3B00]">
+                <span className="font-bold text-[#FF3B00] shrink-0">
                   {isSuperAdmin
                     ? `NPR ${(Number(client.monthlyRetainer) || 0).toLocaleString()}/mo`
                     : '••••••'}
@@ -57,52 +61,56 @@ export function ClientDetailDrawer({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onOpenEdit(client)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted font-bold text-xs text-foreground transition-all cursor-pointer"
-              title="Edit Client"
-            >
-              <Edit2 className="h-4 w-4 text-[#FF3B00]" />
-              <span>Edit</span>
-            </button>
-            <button
-              onClick={() => onRequestDelete(client)}
-              className="p-1.5 rounded-lg border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
-              title="Delete Client"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {canEdit && (
+              <button
+                onClick={() => onOpenEdit(client)}
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted font-bold text-xs text-foreground transition-all cursor-pointer"
+                title="Edit Client"
+              >
+                <Edit2 className="h-3.5 w-3.5 text-[#FF3B00]" />
+                <span className="hidden xs:inline">Edit</span>
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => onRequestDelete(client)}
+                className="p-1.5 rounded-lg border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
+                title="Delete Client"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted cursor-pointer"
             >
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
         </div>
 
-        {/* Profile Navigation Tabs */}
-        <div className="flex border-b border-border gap-2">
+        {/* Profile Navigation Tabs (Horizontally scrollable on phones) */}
+        <div className="flex border-b border-border gap-2 overflow-x-auto scrollbar-none whitespace-nowrap pb-1">
           <button
             onClick={() => setActiveTab('content')}
-            className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer shrink-0 ${
               activeTab === 'content'
                 ? 'border-[#FF3B00] text-[#FF3B00]'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            Content History ({client.contentItems?.length || 0})
+            Content ({client.contentItems?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('billing')}
-            className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            className={`pb-2 px-3 text-xs font-bold transition-all border-b-2 cursor-pointer shrink-0 ${
               activeTab === 'billing'
                 ? 'border-[#FF3B00] text-[#FF3B00]'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            Billing History ({client.invoices?.length || 0})
+            Billing ({client.invoices?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('comms')}

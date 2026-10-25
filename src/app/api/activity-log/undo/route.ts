@@ -101,6 +101,22 @@ export async function POST(req: Request) {
           },
         });
       }
+    } else if (log.entityType === 'User') {
+      if (log.entityId && snapshot) {
+        const updateData: any = {};
+        if (snapshot.name !== undefined) updateData.name = snapshot.name;
+        if (snapshot.email !== undefined) updateData.email = snapshot.email;
+        if (snapshot.department !== undefined) updateData.department = snapshot.department;
+        if (snapshot.roleId !== undefined) updateData.roleId = snapshot.roleId;
+        if (snapshot.active !== undefined) updateData.active = snapshot.active;
+        if (snapshot.permissions !== undefined) updateData.permissions = snapshot.permissions;
+
+        await prisma.user.update({
+          where: { id: log.entityId },
+          data: updateData,
+        });
+        await invalidateCache('users');
+      }
     }
 
     // Record UNDO log
@@ -121,6 +137,8 @@ export async function POST(req: Request) {
       await invalidateCache('tasks');
     } else if (log.entityType === 'ContentItem') {
       await invalidateCache('content');
+    } else if (log.entityType === 'User') {
+      await invalidateCache('users');
     }
     await invalidateCache('dashboard');
 

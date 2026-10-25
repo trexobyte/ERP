@@ -23,6 +23,7 @@ model User {
   
   roleId           String?
   role             Role?              @relation(fields: [roleId], references: [id])
+  permissions      String?            // JSON string of individual customized permissions
   
   assignedClients  ClientAssignment[]
   contentItems     ContentItem[]      @relation("AssignedContent")

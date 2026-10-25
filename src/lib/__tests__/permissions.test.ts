@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parsePermissions, hasPermission, PermissionsMap } from '@/lib/permissions';
+import {
+  parsePermissions,
+  hasPermission,
+  hasActionPermission,
+  getRoleDefaultGranularPermissions,
+  normalizeUserPermissions,
+  countActivePermissions,
+  PermissionsMap,
+} from '@/lib/permissions';
 
 describe('TrexoERP RBAC Permissions Engine', () => {
   describe('parsePermissions', () => {
@@ -104,4 +112,86 @@ describe('TrexoERP RBAC Permissions Engine', () => {
       expect(hasPermission(partial, 'billing', 'view')).toBe(false);
     });
   });
+
+  describe('hasActionPermission & Granular Individual Permissions', () => {
+    it('supports individual granular permissions objects per module', () => {
+      const customMemberPerms = {
+        calendar: { view: true, create: true, edit: false, delete: false },
+        billing: { view: true, create: false, edit: false, delete: false, manage: false },
+        users: { view: false, create: false, edit: false, delete: false },
+      };
+
+      // Can view and create shoots, but cannot edit or delete
+      expect(hasActionPermission(customMemberPerms, 'calendar', 'view')).toBe(true);
+      expect(hasActionPermission(customMemberPerms, 'calendar', 'create')).toBe(true);
+      expect(hasActionPermission(customMemberPerms, 'calendar', 'edit')).toBe(false);
+      expect(hasActionPermission(customMemberPerms, 'calendar', 'delete')).toBe(false);
+
+      // Can view billing, but cannot create or manage payments
+      expect(hasActionPermission(customMemberPerms, 'billing', 'view')).toBe(true);
+      expect(hasActionPermission(customMemberPerms, 'billing', 'create')).toBe(false);
+      expect(hasActionPermission(customMemberPerms, 'billing', 'manage')).toBe(false);
+
+      // Cannot view users
+      expect(hasActionPermission(customMemberPerms, 'users', 'view')).toBe(false);
+    });
+
+    it('evaluates string role levels in hasActionPermission correctly', () => {
+      const rolePerms = {
+        calendar: 'edit',
+        billing: 'full',
+      };
+
+      // 'edit' grants view, create, edit, but not delete
+      expect(hasActionPermission(rolePerms, 'calendar', 'view')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'calendar', 'create')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'calendar', 'edit')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'calendar', 'delete')).toBe(false);
+
+      // 'full' grants all including delete and manage
+      expect(hasActionPermission(rolePerms, 'billing', 'view')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'billing', 'create')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'billing', 'delete')).toBe(true);
+      expect(hasActionPermission(rolePerms, 'billing', 'manage')).toBe(true);
+    });
+
+    it('ensures individual permissions take precedence over role defaults without accidental privilege escalation', () => {
+      // Two users with Content/Shoot Manager role
+      // Member A has full calendar access
+      const memberA = getRoleDefaultGranularPermissions('Content/Shoot Manager');
+      expect(hasActionPermission(memberA, 'calendar', 'delete')).toBe(true);
+
+      // Member B has customized permissions: restricted from deleting calendar events or deliverables
+      const memberB = {
+        ...memberA,
+        calendar: { ...memberA.calendar, delete: false },
+        tracker: { ...memberA.tracker, delete: false },
+      };
+
+      expect(hasActionPermission(memberB, 'calendar', 'view')).toBe(true);
+      expect(hasActionPermission(memberB, 'calendar', 'create')).toBe(true);
+      expect(hasActionPermission(memberB, 'calendar', 'edit')).toBe(true);
+      expect(hasActionPermission(memberB, 'calendar', 'delete')).toBe(false);
+      expect(hasActionPermission(memberB, 'tracker', 'delete')).toBe(false);
+    });
+
+    it('correctly normalizes permissions and counts active permissions', () => {
+      const perms = {
+        dashboard: { view: true },
+        calendar: { view: true, create: true, edit: false, delete: false },
+      };
+
+      const normalized = normalizeUserPermissions(perms);
+      expect(normalized.dashboard.view).toBe(true);
+      expect(normalized.calendar.view).toBe(true);
+      expect(normalized.calendar.create).toBe(true);
+      expect(normalized.calendar.edit).toBe(false);
+      expect(normalized.clients.view).toBe(false);
+
+      const stats = countActivePermissions(perms);
+      expect(stats.enabled).toBe(3); // dashboard.view, calendar.view, calendar.create
+      expect(stats.total).toBe(29);
+    });
+  });
 });
+

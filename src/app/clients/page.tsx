@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useImpersonation } from '@/components/providers';
-import { Building2, Plus, Search } from 'lucide-react';
+import { Building2, Plus, Search, Lock } from 'lucide-react';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { ClientCard } from '@/components/clients/client-card';
 import { ClientFormModal } from '@/components/clients/client-form-modal';
 import { ClientDetailDrawer } from '@/components/clients/client-detail-drawer';
@@ -11,6 +12,7 @@ import { DeleteClientModal } from '@/components/clients/delete-client-modal';
 export default function ClientsPage() {
   const {
     effectiveRoleName,
+    effectivePermissions,
     refreshTrigger,
     triggerRefresh,
     cachedClients,
@@ -19,6 +21,10 @@ export default function ClientsPage() {
     setCachedUsers,
   } = useImpersonation();
   const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewClients = hasPermission(effectivePermissions, 'clients', 'view') || isSuperAdmin;
+  const canCreateClients = hasActionPermission(effectivePermissions, 'clients', 'create') || isSuperAdmin;
+  const canEditClients = hasActionPermission(effectivePermissions, 'clients', 'edit') || isSuperAdmin;
+  const canDeleteClients = hasActionPermission(effectivePermissions, 'clients', 'delete') || isSuperAdmin;
 
   const [clients, setClients] = useState<any[]>(() => {
     if (cachedClients && cachedClients.length > 0) return cachedClients;
@@ -227,6 +233,22 @@ export default function ClientsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  if (!canViewClients) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view or manage client accounts.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Action Bar */}
@@ -240,12 +262,14 @@ export default function ClientsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn w-full sm:w-auto shrink-0 shadow-xs cursor-pointer"
-        >
-          <Plus className="h-4 w-4 stroke-[3]" /> Add Client Account
-        </button>
+        {canCreateClients && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn w-full sm:w-auto shrink-0 shadow-xs cursor-pointer"
+          >
+            <Plus className="h-4 w-4 stroke-[3]" /> Add Client Account
+          </button>
+        )}
       </div>
 
       {/* Filter & Search Bar */}
@@ -296,6 +320,8 @@ export default function ClientsPage() {
               key={client.id}
               client={client}
               isSuperAdmin={isSuperAdmin}
+              canEdit={canEditClients}
+              canDelete={canDeleteClients}
               onOpenDetails={handleOpenClientDetails}
               onOpenEdit={(cl, e) => {
                 e.stopPropagation();
@@ -336,6 +362,8 @@ export default function ClientsPage() {
         isOpen={Boolean(selectedClient)}
         onClose={() => setSelectedClient(null)}
         isSuperAdmin={isSuperAdmin}
+        canEdit={canEditClients}
+        canDelete={canDeleteClients}
         onOpenEdit={(cl) => {
           setSelectedClient(null);
           setEditingClient(cl);

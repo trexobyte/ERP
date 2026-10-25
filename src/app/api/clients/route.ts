@@ -5,13 +5,23 @@ import { authOptions } from '@/lib/auth';
 import { isClientDeleted } from '@/lib/deleted-clients';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'clients', 'view')) {
+      return forbiddenResponse('You do not have permission to view clients.');
     }
 
     const cacheKey = 'clients:all';
@@ -109,11 +119,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'clients', 'create')) {
+      return forbiddenResponse('You do not have permission to create clients.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { name, logo, color, servicePackage, packageTier, status, monthlyRetainer, startDate, billingCycleDay, assignedUserIds } = body;

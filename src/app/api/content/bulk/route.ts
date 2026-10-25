@@ -5,15 +5,25 @@ import { authOptions } from '@/lib/auth';
 import { invalidateCache } from '@/lib/cache';
 import { toDatabaseDateString } from '@/lib/date-utils';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'tracker', 'create') && !checkUserAction(caller, 'calendar', 'create')) {
+      return forbiddenResponse('You do not have permission to create content deliverables.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { clientId, items } = body;

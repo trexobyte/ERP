@@ -25,6 +25,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useImpersonation } from '@/components/providers';
+import { hasActionPermission } from '@/lib/permissions';
 
 interface AuditHistoryModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ type CategoryType = 'ALL' | 'CONTENT' | 'TASKS' | 'CLIENTS' | 'BILLING' | 'TEAM'
 
 export function AuditHistoryModal({ isOpen, onClose }: AuditHistoryModalProps) {
   const { data: session } = useSession();
-  const { effectiveRoleName, refreshTrigger, triggerRefresh } = useImpersonation();
+  const { effectiveRoleName, effectivePermissions, refreshTrigger, triggerRefresh } = useImpersonation();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [undoingId, setUndoingId] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function AuditHistoryModal({ isOpen, onClose }: AuditHistoryModalProps) {
   const isSuperAdmin =
     effectiveRoleName === 'Super Admin' ||
     (session?.user as any)?.roleName === 'Super Admin';
+  const canManageAudit = isSuperAdmin || hasActionPermission(effectivePermissions, 'audit', 'manage');
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -250,29 +252,29 @@ export function AuditHistoryModal({ isOpen, onClose }: AuditHistoryModalProps) {
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200 overflow-y-auto"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200 overflow-y-auto"
     >
-      <div className="relative w-full max-w-5xl bg-card border-2 border-border shadow-2xl rounded-2xl overflow-hidden max-h-[88vh] flex flex-col text-card-foreground my-auto">
+      <div className="relative w-full max-w-5xl bg-card border-2 border-border shadow-2xl rounded-2xl overflow-hidden max-h-[92dvh] flex flex-col text-card-foreground my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-muted/40 px-6 py-4 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#FF3B00]/15 text-[#FF3B00] border border-[#FF3B00]/30 shadow-inner">
-              <History className="h-6 w-6" />
+        <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3.5 sm:px-6 py-3 sm:py-4 flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-[#FF3B00]/15 text-[#FF3B00] border border-[#FF3B00]/30 shadow-inner shrink-0">
+              <History className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black tracking-tight text-foreground">
-                  Centralized Changes Log
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-black tracking-tight text-foreground truncate">
+                  Changes Log
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#FF3B00]/10 text-[#FF3B00] border border-[#FF3B00]/20">
+                <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-mono font-bold bg-[#FF3B00]/10 text-[#FF3B00] border border-[#FF3B00]/20">
                   {logs.length} Events
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
                   Super Admin
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                Audit trail & instant rollback version history across all ERP modules
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mt-0.5 truncate">
+                Audit trail & instant rollback version history
               </p>
             </div>
           </div>
@@ -426,7 +428,7 @@ export function AuditHistoryModal({ isOpen, onClose }: AuditHistoryModalProps) {
                         })}
                       </span>
 
-                      {hasUndo && log.action !== 'UNDO' && log.action !== 'RESTORE' && (
+                      {canManageAudit && hasUndo && log.action !== 'UNDO' && log.action !== 'RESTORE' && (
                         <button
                           onClick={() => handleUndo(log.id)}
                           disabled={undoingId === log.id}

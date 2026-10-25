@@ -119,7 +119,7 @@ export const authOptions: NextAuthOptions = {
           avatar: avatarUrl,
           roleId: user.roleId || '',
           roleName: user.role?.name || 'Viewer',
-          permissions: user.role?.permissions || '{}',
+          permissions: user.permissions ?? user.role?.permissions ?? '{}',
           assignedClientIds: user.assignedClients?.map((a: any) => a.clientId) || [],
         };
       },

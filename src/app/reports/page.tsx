@@ -12,11 +12,15 @@ import {
   FileText,
   Sparkles,
   Printer,
+  Lock,
 } from 'lucide-react';
+import { hasPermission } from '@/lib/permissions';
 import { getTodayLocalDateKey, formatLocalDate } from '@/lib/date-utils';
 
 export default function ReportsPage() {
-  const { refreshTrigger, cachedClients, cachedContent, cachedInvoices } = useImpersonation();
+  const { effectiveRoleName, effectivePermissions, refreshTrigger, cachedClients, cachedContent, cachedInvoices } = useImpersonation();
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewReports = hasPermission(effectivePermissions, 'reports', 'view') || isSuperAdmin;
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [selectedClientId, setSelectedClientId] = useState('all');
   const [reportMonth, setReportMonth] = useState(() => getTodayLocalDateKey().slice(0, 7));
@@ -124,6 +128,22 @@ export default function ReportsPage() {
   const handlePrintReport = () => {
     window.print();
   };
+
+  if (!canViewReports) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view performance reports.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

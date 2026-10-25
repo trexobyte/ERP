@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useImpersonation } from '@/components/providers';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import {
   Receipt,
   Plus,
@@ -18,6 +18,7 @@ import {
   X,
   Trash2,
   FileText,
+  Lock,
 } from 'lucide-react';
 import { InvoicePreviewModal } from '@/components/billing/invoice-preview-modal';
 import {
@@ -33,7 +34,15 @@ import {
 import { getTodayLocalDateKey, toLocalDateKey, formatLocalDate } from '@/lib/date-utils';
 
 export default function BillingPage() {
-  const { effectivePermissions, refreshTrigger, triggerRefresh, cachedClients, cachedInvoices, setCachedInvoices } = useImpersonation();
+  const {
+    effectiveRoleName,
+    effectivePermissions,
+    refreshTrigger,
+    triggerRefresh,
+    cachedClients,
+    cachedInvoices,
+    setCachedInvoices,
+  } = useImpersonation();
   const [invoices, setInvoices] = useState<any[]>(() => (cachedInvoices && cachedInvoices.length > 0 ? cachedInvoices : []));
   const [clients, setClients] = useState<any[]>(cachedClients || []);
   const [loading, setLoading] = useState(() => !cachedInvoices || cachedInvoices.length === 0);
@@ -76,7 +85,11 @@ export default function BillingPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showCreateModal, selectedInvoice]);
 
-  const canAccessBilling = hasPermission(effectivePermissions, 'billing', 'view');
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewBilling = hasPermission(effectivePermissions, 'billing', 'view') || isSuperAdmin;
+  const canCreateInvoice = hasActionPermission(effectivePermissions, 'billing', 'create') || isSuperAdmin;
+  const canDeleteInvoice = hasActionPermission(effectivePermissions, 'billing', 'delete') || isSuperAdmin;
+  const canManagePayments = hasActionPermission(effectivePermissions, 'billing', 'manage') || isSuperAdmin;
 
   useEffect(() => {
     if (cachedClients && cachedClients.length > 0 && clients.length === 0) {
@@ -153,18 +166,6 @@ export default function BillingPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showCreateModal, selectedInvoice]);
-
-  if (!canAccessBilling) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center text-center p-6 bg-card rounded-xl border border-border">
-        <AlertTriangle className="h-12 w-12 text-[#FF3B00] mb-3" />
-        <h2 className="text-xl font-extrabold text-foreground">Access Restricted</h2>
-        <p className="text-xs text-muted-foreground max-w-md mt-1">
-          Your current role view does not have permission to access Billing & Finance data. Contact Ketan or Super Admin.
-        </p>
-      </div>
-    );
-  }
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,6 +295,22 @@ export default function BillingPage() {
     { month: 'September 2026', Expected: totalRevenueExpected, Collected: totalRevenueCollected },
   ];
 
+  if (!canViewBilling) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view billing or invoices.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Actions */}
@@ -307,12 +324,14 @@ export default function BillingPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn"
-        >
-          <Plus className="h-4 w-4 stroke-[3]" /> Create Invoice
-        </button>
+        {canCreateInvoice && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn"
+          >
+            <Plus className="h-4 w-4 stroke-[3]" /> Create Invoice
+          </button>
+        )}
       </div>
 
       {/* Financial Overview Cards */}
@@ -408,7 +427,115 @@ export default function BillingPage() {
       </div>
 
       {/* Invoices Data Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+      {/* 1. MOBILE INVOICE CARDS (< md screens) */}
+      <div className="block md:hidden space-y-3">
+        {invoices.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground font-mono">
+            No client billing invoices found. Tap "+ Generate Invoice" above.
+          </div>
+        ) : (
+          invoices.map((inv) => {
+            const paidAmount = inv.payments?.reduce((acc: number, p: any) => acc + p.amountReceived, 0) || 0;
+
+            return (
+              <div
+                key={inv.id}
+                className="rounded-xl border border-border bg-card p-3.5 shadow-2xs space-y-3"
+              >
+                {/* Header: Invoice # and Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-mono font-bold text-sm text-foreground block truncate">
+                      {inv.invoiceNumber}
+                    </span>
+                    <span
+                      className="px-2 py-0.5 rounded text-[10px] font-bold text-white uppercase inline-block mt-1"
+                      style={{ backgroundColor: inv.client?.color || '#FF3B00' }}
+                    >
+                      {inv.client?.name}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase shrink-0 ${
+                      inv.status === 'PAID'
+                        ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                        : inv.status === 'OVERDUE'
+                        ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                        : 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                    }`}
+                  >
+                    {inv.status}
+                  </span>
+                </div>
+
+                {/* Amount & Period */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-border/50">
+                  <div>
+                    <span className="text-[10px] font-mono text-muted-foreground block uppercase">Amount Due</span>
+                    <span className="font-black text-sm text-foreground block font-mono">
+                      NPR {inv.amount.toLocaleString()}
+                    </span>
+                    {paidAmount > 0 && paidAmount < inv.amount && (
+                      <span className="text-[10px] text-amber-500 font-mono block">
+                        Paid: NPR {paidAmount.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono text-muted-foreground block uppercase">Billing Period</span>
+                    <span className="font-mono text-xs text-foreground block truncate">
+                      {inv.billingPeriod}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="text-[11px] font-mono text-muted-foreground pt-1">
+                  <span>Issued: {formatLocalDate(inv.issueDate)}</span> • <span className="font-semibold text-foreground">Due: {formatLocalDate(inv.dueDate)}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewInvoice(inv)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-muted/60 text-foreground font-bold text-xs hover:bg-muted transition-colors cursor-pointer"
+                    title="View, Print & Download Invoice PDF"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-[#FF3B00]" />
+                    <span>PDF</span>
+                  </button>
+
+                  {inv.status !== 'PAID' && canManagePayments && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInvoice(inv)}
+                      className="px-3 py-1.5 rounded-lg bg-[#FF3B00] text-white font-bold text-xs hover:bg-[#e03400] transition-colors cursor-pointer"
+                    >
+                      Record Payment
+                    </button>
+                  )}
+
+                  {canDeleteInvoice && (
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceToDelete(inv)}
+                      className="p-2 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                      title="Delete Invoice"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 2. DESKTOP INVOICES TABLE (Visible on md+ screens) */}
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden shadow-xs">
         <table className="w-full text-left text-xs">
           <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-mono border-b border-border">
             <tr>
@@ -476,7 +603,7 @@ export default function BillingPage() {
                         <span>PDF</span>
                       </button>
 
-                      {inv.status !== 'PAID' && (
+                      {inv.status !== 'PAID' && canManagePayments && (
                         <button
                           onClick={() => setSelectedInvoice(inv)}
                           className="px-2.5 py-1 rounded bg-[#FF3B00] text-white font-bold text-[11px] hover:bg-[#e03400] transition-colors cursor-pointer"
@@ -484,14 +611,16 @@ export default function BillingPage() {
                           Record Payment
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => setInvoiceToDelete(inv)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors cursor-pointer"
-                        title="Delete Invoice"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canDeleteInvoice && (
+                        <button
+                          type="button"
+                          onClick={() => setInvoiceToDelete(inv)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors cursor-pointer"
+                          title="Delete Invoice"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

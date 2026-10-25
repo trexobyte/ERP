@@ -4,19 +4,23 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { invalidateCache } from '@/lib/cache';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
-
-    let validUserId: string | null = null;
-    if (userId) {
-      const userObj = await prisma.user.findUnique({ where: { id: userId } });
-      if (userObj) validUserId = userObj.id;
+    if (!checkUserAction(caller, 'billing', 'manage') && !checkUserAction(caller, 'billing', 'edit')) {
+      return forbiddenResponse('You do not have permission to record and manage payments.');
     }
+    const validUserId = caller.id;
 
     const body = await req.json();
     const { invoiceId, amountReceived, paymentDate, notes } = body;

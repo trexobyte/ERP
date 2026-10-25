@@ -5,13 +5,23 @@ import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 import { toDatabaseDateString } from '@/lib/date-utils';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'billing', 'view')) {
+      return forbiddenResponse('You do not have permission to view billing and invoices.');
     }
 
     const { searchParams } = new URL(req.url);
@@ -72,11 +82,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'billing', 'create')) {
+      return forbiddenResponse('You do not have permission to create invoices.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { clientId, invoiceNumber, amount, issueDate, dueDate, status, billingPeriod, paymentNotes } = body;
@@ -141,11 +154,14 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'billing', 'edit')) {
+      return forbiddenResponse('You do not have permission to edit billing records.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { id, status, paymentNotes, amount, dueDate, issueDate, billingPeriod } = body;
@@ -177,15 +193,20 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'billing', 'delete')) {
+      return forbiddenResponse('You do not have permission to delete invoices.');
+    }
+    const userId = caller.id;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Invoice ID required' }, { status: 400 });
-
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!id) {
+      return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
     }
-    const userId = (session.user as any)?.id;
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },

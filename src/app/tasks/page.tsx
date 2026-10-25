@@ -6,7 +6,8 @@ import {
   DndContext,
   closestCenter,
   pointerWithin,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -36,7 +37,9 @@ import {
   Link as LinkIcon,
   X,
   GripVertical,
+  Lock,
 } from 'lucide-react';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
 
 function SortableTaskCard({
@@ -165,7 +168,24 @@ function DroppableTaskColumn({
 }
 
 export default function TasksPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedTasks, setCachedTasks } = useImpersonation();
+  const {
+    effectiveRoleName,
+    effectivePermissions,
+    openQuickAdd,
+    refreshTrigger,
+    triggerRefresh,
+    cachedClients,
+    cachedUsers,
+    cachedTasks,
+    setCachedTasks,
+  } = useImpersonation();
+
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewTasks = hasPermission(effectivePermissions, 'tasks', 'view') || isSuperAdmin;
+  const canCreateTasks = hasActionPermission(effectivePermissions, 'tasks', 'create') || isSuperAdmin;
+  const canEditTasks = hasActionPermission(effectivePermissions, 'tasks', 'edit') || isSuperAdmin;
+  const canDeleteTasks = hasActionPermission(effectivePermissions, 'tasks', 'delete') || isSuperAdmin;
+
   const [viewMode, setViewMode] = useState<'urgency' | 'kanban'>('urgency');
   const [tasks, setTasks] = useState<any[]>(() => {
     if (cachedTasks && cachedTasks.length > 0) return cachedTasks;
@@ -182,13 +202,21 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(() => !cachedTasks || cachedTasks.length === 0);
   const [activeDragTask, setActiveDragTask] = useState<any | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  // Drag & drop sensors: MouseSensor for desktop, TouchSensor with delay to allow smooth page scroll
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 6,
+    },
+  });
+
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   const customCollisionDetection = (args: any) => {
     const pointerCollisions = pointerWithin(args);
@@ -376,6 +404,10 @@ export default function TasksPage() {
   };
 
   const updateTaskStatus = async (id: string, newStatus: string) => {
+    if (!canEditTasks) {
+      alert('You do not have permission to edit or complete tasks.');
+      return;
+    }
     try {
       const res = await fetch('/api/tasks', {
         method: 'PUT',
@@ -434,6 +466,12 @@ export default function TasksPage() {
       return;
     }
 
+    if (!canEditTasks) {
+      setDragStartStatus(null);
+      alert('You do not have permission to edit or move tasks.');
+      return;
+    }
+
     const activeId = active.id as string;
     const overId = over.id as string;
 
@@ -471,6 +509,22 @@ export default function TasksPage() {
     { key: 'MEDIUM', label: '🟡 Medium Priority', color: '#EAB308', badgeClass: 'bg-yellow-500 text-white' },
     { key: 'LOW', label: '⚪ Low Priority', color: '#64748B', badgeClass: 'bg-slate-600 text-white' },
   ];
+
+  if (!canViewTasks) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view or manage tasks.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
@@ -510,12 +564,14 @@ export default function TasksPage() {
             </button>
           </div>
 
-          <button
-            onClick={() => openQuickAdd('task')}
-            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs"
-          >
-            <Plus className="h-4 w-4 stroke-[3]" /> Add Task
-          </button>
+          {canCreateTasks && (
+            <button
+              onClick={() => openQuickAdd('task')}
+              className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs cursor-pointer"
+            >
+              <Plus className="h-4 w-4 stroke-[3]" /> Add Task
+            </button>
+          )}
         </div>
       </div>
 

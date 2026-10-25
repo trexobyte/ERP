@@ -5,20 +5,30 @@ import { authOptions } from '@/lib/auth';
 import { getCached, setCached } from '@/lib/cache';
 import { toLocalDateKey, getTodayLocalDateKey } from '@/lib/date-utils';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'dashboard', 'view')) {
+      return forbiddenResponse('You do not have permission to view the dashboard.');
+    }
+
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get('clientId');
     const department = searchParams.get('department');
     const assigneeId = searchParams.get('assigneeId');
     const contentType = searchParams.get('contentType');
-
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const cacheKey = `dashboard:${clientId || ''}:${department || ''}:${assigneeId || ''}:${contentType || ''}`;
     const cached = await getCached<any>(cacheKey);

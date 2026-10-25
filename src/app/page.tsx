@@ -29,6 +29,7 @@ import {
   ArrowUpRight,
   Sparkles,
   Zap,
+  Lock,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -43,7 +44,8 @@ export default function DashboardPage() {
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [selectedContentType, setSelectedContentType] = useState('');
 
-  const canViewBilling = hasPermission(effectivePermissions, 'billing', 'view');
+  const canViewDashboard = hasPermission(effectivePermissions, 'dashboard', 'view') || isSuperAdmin;
+  const canViewBilling = hasPermission(effectivePermissions, 'billing', 'view') || isSuperAdmin;
 
   useEffect(() => {
     if (cachedDashboard && !data && !selectedClient && !selectedDepartment && !selectedAssignee && !selectedContentType) {
@@ -88,6 +90,22 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center gap-2">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#FF3B00] border-t-transparent" />
           <p className="text-xs font-mono text-muted-foreground">Loading Agency Intelligence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canViewDashboard) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view the business dashboard.
+          </p>
         </div>
       </div>
     );

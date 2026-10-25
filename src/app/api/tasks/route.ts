@@ -5,13 +5,23 @@ import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 import { toDatabaseDateString } from '@/lib/date-utils';
 
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'tasks', 'view')) {
+      return forbiddenResponse('You do not have permission to view tasks.');
     }
 
     const { searchParams } = new URL(req.url);
@@ -131,11 +141,14 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'tasks', 'create')) {
+      return forbiddenResponse('You do not have permission to create tasks.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { title, description, clientId, contentItemId, assigneeId, dueDate, urgency, status } = body;
@@ -186,11 +199,14 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'tasks', 'edit')) {
+      return forbiddenResponse('You do not have permission to edit tasks.');
+    }
+    const userId = caller.id;
 
     const body = await req.json();
     const { id, title, description, clientId, contentItemId, assigneeId, dueDate, urgency, status, updateContentStatus } = body;
@@ -243,9 +259,12 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'tasks', 'delete')) {
+      return forbiddenResponse('You do not have permission to delete tasks.');
     }
 
     const { searchParams } = new URL(req.url);
@@ -261,3 +280,4 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
 }
+

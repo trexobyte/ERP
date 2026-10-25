@@ -6,6 +6,8 @@ import { Building2, ChevronRight, Edit2, Trash2 } from 'lucide-react';
 interface ClientCardProps {
   client: any;
   isSuperAdmin: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onOpenDetails: (client: any) => void;
   onOpenEdit: (client: any, e: React.MouseEvent) => void;
   onRequestDelete: (client: any, e: React.MouseEvent) => void;
@@ -14,6 +16,8 @@ interface ClientCardProps {
 export function ClientCard({
   client,
   isSuperAdmin,
+  canEdit = true,
+  canDelete = true,
   onOpenDetails,
   onOpenEdit,
   onRequestDelete,
@@ -93,22 +97,26 @@ export function ClientCard({
           View Profile <ChevronRight className="h-4 w-4" />
         </span>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => onOpenEdit(client, e)}
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title="Edit Client"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => onRequestDelete(client, e)}
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors cursor-pointer"
-            title="Delete Client"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={(e) => onOpenEdit(client, e)}
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              title="Edit Client"
+            >
+              <Edit2 className="h-4 w-4" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={(e) => onRequestDelete(client, e)}
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors cursor-pointer"
+              title="Delete Client"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>

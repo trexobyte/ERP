@@ -1,16 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
+    }
+    if (!checkUserAction(caller, 'users', 'view')) {
+      return forbiddenResponse('You do not have permission to view roles.');
     }
 
     const cacheKey = 'roles:all';
@@ -42,11 +49,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!caller.isSuperAdmin) {
+      return forbiddenResponse('Only Super Admins can create custom roles.');
+    }
 
     const body = await req.json();
     const { name, permissions, isCustom } = body;
@@ -68,17 +77,15 @@ export async function POST(req: Request) {
       },
     });
 
-    if (userId) {
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: 'CREATE',
-          entityType: 'Role',
-          entityId: role.id,
-          details: `Created custom role: ${role.name}`,
-        },
-      });
-    }
+    await prisma.activityLog.create({
+      data: {
+        userId: caller.id,
+        action: 'CREATE',
+        entityType: 'Role',
+        entityId: role.id,
+        details: `Created custom role: ${role.name}`,
+      },
+    });
 
     await invalidateCache('roles');
     return NextResponse.json(role);
@@ -90,11 +97,13 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!caller.isSuperAdmin) {
+      return forbiddenResponse('Only Super Admins can update roles.');
+    }
 
     const body = await req.json();
     const { id, name, permissions } = body;

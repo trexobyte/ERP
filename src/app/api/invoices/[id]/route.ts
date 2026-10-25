@@ -1,19 +1,26 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { invalidateCache } from '@/lib/cache';
+import {
+  getAuthenticatedUser,
+  checkUserAction,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from '@/lib/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const caller = await getAuthenticatedUser();
+    if (!caller) {
+      return unauthorizedResponse();
     }
-    const userId = (session.user as any)?.id;
+    if (!checkUserAction(caller, 'billing', 'delete')) {
+      return forbiddenResponse('You do not have permission to delete invoices.');
+    }
+    const userId = caller.id;
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
@@ -23,17 +30,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     await prisma.invoice.delete({ where: { id } });
 
-    if (userId) {
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: 'DELETE',
-          entityType: 'Invoice',
-          entityId: id,
-          details: `Deleted invoice ${invoice.invoiceNumber} for ${invoice.client.name}`,
-        },
-      });
-    }
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: 'DELETE',
+        entityType: 'Invoice',
+        entityId: id,
+        details: `Deleted invoice ${invoice.invoiceNumber} for ${invoice.client.name}`,
+      },
+    });
 
     await invalidateCache('invoices');
     await invalidateCache('clients');

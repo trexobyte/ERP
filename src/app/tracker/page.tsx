@@ -6,7 +6,8 @@ import {
   DndContext,
   closestCenter,
   pointerWithin,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -35,7 +36,9 @@ import {
   User,
   Plus,
   GripVertical,
+  Lock,
 } from 'lucide-react';
+import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { formatLocalDate, getTodayLocalDateKey } from '@/lib/date-utils';
 
 function SortableTrackerCard({ item }: { item: any }) {
@@ -171,7 +174,24 @@ function DroppableTrackerColumn({
 }
 
 export default function ContentTrackerPage() {
-  const { openQuickAdd, refreshTrigger, triggerRefresh, cachedClients, cachedUsers, cachedContent, setCachedContent } = useImpersonation();
+  const {
+    effectiveRoleName,
+    effectivePermissions,
+    openQuickAdd,
+    refreshTrigger,
+    triggerRefresh,
+    cachedClients,
+    cachedUsers,
+    cachedContent,
+    setCachedContent,
+  } = useImpersonation();
+
+  const isSuperAdmin = effectiveRoleName === 'Super Admin';
+  const canViewTracker = hasPermission(effectivePermissions, 'tracker', 'view') || isSuperAdmin;
+  const canCreateTracker = hasActionPermission(effectivePermissions, 'tracker', 'create') || isSuperAdmin;
+  const canEditTracker = hasActionPermission(effectivePermissions, 'tracker', 'edit') || isSuperAdmin;
+  const canDeleteTracker = hasActionPermission(effectivePermissions, 'tracker', 'delete') || isSuperAdmin;
+
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [contentItems, setContentItems] = useState<any[]>(() => {
     if (cachedContent && cachedContent.length > 0) return cachedContent;
@@ -194,14 +214,21 @@ export default function ContentTrackerPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [mobileStageFilter, setMobileStageFilter] = useState('ALL');
 
-  // Drag & drop sensors with 8px threshold to prevent accidental dragging on mobile scroll
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  // Drag & drop sensors: MouseSensor for instant desktop drag, TouchSensor with delay to allow smooth page scroll
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 6,
+    },
+  });
+
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   const customCollisionDetection = (args: any) => {
     const pointerCollisions = pointerWithin(args);
@@ -322,6 +349,10 @@ export default function ContentTrackerPage() {
   ];
 
   const updateItemStatus = async (id: string, newStatus: string, approvalOutcome?: string) => {
+    if (!canEditTracker) {
+      alert('You do not have permission to update tracker deliverables.');
+      return;
+    }
     try {
       const res = await fetch('/api/content', {
         method: 'PUT',
@@ -390,6 +421,12 @@ export default function ContentTrackerPage() {
       return;
     }
 
+    if (!canEditTracker) {
+      setDragStartStatus(null);
+      alert('You do not have permission to update stages or move deliverables.');
+      return;
+    }
+
     const activeId = active.id as string;
     const overId = over.id as string;
 
@@ -442,6 +479,22 @@ export default function ContentTrackerPage() {
     document.body.removeChild(link);
   };
 
+  if (!canViewTracker) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
+        <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20">
+          <Lock className="h-7 w-7" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-black text-foreground">Access Restricted</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your current account role (<span className="text-[#FF3B00] font-bold">{effectiveRoleName}</span>) does not have permission to view or manage the production tracker.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-300">
       {/* Header & Controls */}
@@ -487,13 +540,15 @@ export default function ContentTrackerPage() {
             <Download className="h-4 w-4 text-[#FF3B00]" /> <span className="hidden sm:inline">Export</span> CSV
           </button>
 
-          <button
-            onClick={() => openQuickAdd('content')}
-            className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs"
-            title="Add a Content Item"
-          >
-            <Plus className="h-4 w-4 stroke-[3]" /> Add Content
-          </button>
+          {canCreateTracker && (
+            <button
+              onClick={() => openQuickAdd('content')}
+              className="flex items-center gap-1.5 rounded-md bg-[#FF3B00] px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-white hover:bg-[#e03400] transition-all clicky-btn shadow-xs cursor-pointer"
+              title="Add a Content Item"
+            >
+              <Plus className="h-4 w-4 stroke-[3]" /> Add Content
+            </button>
+          )}
         </div>
       </div>
 
