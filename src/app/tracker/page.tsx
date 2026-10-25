@@ -67,7 +67,7 @@ function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item:
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border border-border bg-card shadow-2xs hover:border-[#FF3B00] transition-all space-y-1.5 group select-none min-w-0 ${
+      className={`rounded-lg border border-border bg-card shadow-2xs hover:border-[#FF3B00] transition-all space-y-1 group select-none min-w-0 ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] z-30 shadow-xl' : 'opacity-100'
       }`}
     >
@@ -75,41 +75,41 @@ function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item:
       <div
         {...listeners}
         {...attributes}
-        className="flex items-center gap-1 px-2 pt-2 cursor-grab active:cursor-grabbing min-w-0"
+        className="flex items-center gap-1 px-1.5 pt-1.5 sm:px-2 sm:pt-2 cursor-grab active:cursor-grabbing min-w-0"
       >
-        <GripVertical className="h-3 w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0" />
+        <GripVertical className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-muted-foreground opacity-40 group-hover:opacity-100 shrink-0" />
         {/* Top Tag Row: Client Name on Left, Post Format on Right */}
         <div className="flex items-center justify-between gap-1 min-w-0 flex-1">
           <span
-            className="px-1.5 py-0.5 rounded text-[8.5px] font-black text-white uppercase truncate max-w-[85px] lg:max-w-[110px] shrink min-w-0 shadow-2xs leading-none"
+            className="px-1 sm:px-1.5 py-0.5 rounded text-[7.5px] sm:text-[8.5px] font-black text-white uppercase truncate max-w-[55px] sm:max-w-[85px] lg:max-w-[110px] shrink min-w-0 shadow-2xs leading-none"
             style={{ backgroundColor: item.client?.color || '#FF3B00' }}
             title={item.client?.name || 'Client'}
           >
             {item.client?.name || 'Client'}
           </span>
-          <span className="text-[7.5px] lg:text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80 border border-border/40 leading-none">
+          <span className="text-[7px] sm:text-[7.5px] lg:text-[8px] font-mono font-bold text-muted-foreground uppercase shrink-0 px-1 py-0.5 rounded bg-muted/80 border border-border/40 leading-none">
             {formattedType}
           </span>
         </div>
       </div>
 
       {/* Card Title */}
-      <div className="px-2 min-w-0">
-        <h4 className="font-bold text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0 select-none">
+      <div className="px-1.5 sm:px-2 min-w-0">
+        <h4 className="font-bold text-[10px] sm:text-[10.5px] lg:text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-tight line-clamp-2 break-words min-w-0 select-none">
           {item.title}
         </h4>
       </div>
 
       {/* Approval Status Badge */}
       {item.approvalOutcome && (
-        <div className="flex items-center gap-1 text-[8.5px] font-bold px-2">
+        <div className="flex items-center gap-1 text-[8px] sm:text-[8.5px] font-bold px-1.5 sm:px-2">
           {item.approvalOutcome === 'APPROVED' && (
-            <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 leading-none">
+            <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.5 rounded flex items-center gap-1 leading-none text-[8px]">
               <CheckCircle2 className="h-2.5 w-2.5 shrink-0" /> Approved
             </span>
           )}
           {item.approvalOutcome === 'REVISION_REQUESTED' && (
-            <span className="text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1 leading-none">
+            <span className="text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1 py-0.5 rounded flex items-center gap-1 leading-none text-[8px]">
               <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> Revision
             </span>
           )}
@@ -118,19 +118,19 @@ function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item:
 
       {/* Client Feedback Note */}
       {item.clientFeedbackNotes && (
-        <p className="text-[8.5px] text-muted-foreground bg-muted/60 border border-border/40 p-1 rounded italic line-clamp-2 break-words leading-tight mx-2">
+        <p className="text-[8px] text-muted-foreground bg-muted/60 border border-border/40 p-1 rounded italic line-clamp-2 break-words leading-tight mx-1.5 sm:mx-2">
           "{item.clientFeedbackNotes}"
         </p>
       )}
 
       {/* Footer: Date, Assignee & Mobile Stage Selector */}
-      <div className="px-2 pb-2 border-t border-border/40 pt-1.5 space-y-1.5">
-        <div className="flex items-center justify-between text-[9px] text-muted-foreground font-mono gap-1 min-w-0">
+      <div className="px-1.5 sm:px-2 pb-1.5 sm:pb-2 border-t border-border/40 pt-1 space-y-1">
+        <div className="flex items-center justify-between text-[8px] sm:text-[9px] text-muted-foreground font-mono gap-1 min-w-0">
           <span className="truncate">
             {item.scheduledDate ? formatLocalDate(item.scheduledDate) : 'Unscheduled'}
           </span>
           {item.assignee && (
-            <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[8.5px] truncate max-w-[65px]">
+            <span className="font-semibold text-foreground shrink-0 bg-muted/80 px-1 py-0.5 rounded text-[7.5px] sm:text-[8.5px] truncate max-w-[45px] sm:max-w-[65px]">
               {item.assignee.name ? item.assignee.name.split(' ')[0] : 'Team'}
             </span>
           )}
@@ -145,7 +145,7 @@ function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item:
             <select
               value={item.status}
               onChange={(e) => onStatusChange(item.id, e.target.value)}
-              className="w-full rounded border border-border bg-background px-2 py-1 text-[10px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
+              className="w-full rounded border border-border bg-background px-1 sm:px-1.5 py-0.5 text-[8.5px] sm:text-[9.5px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
               style={{ color: currentCol?.color || '#FF3B00' }}
             >
               {columns.map((c) => (
@@ -180,24 +180,24 @@ function DroppableTrackerColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border transition-all p-2 sm:p-2.5 min-h-[480px] min-w-0 ${
+      className={`flex flex-col rounded-xl border transition-all p-1.5 sm:p-2 md:p-2.5 min-h-[440px] md:min-h-[480px] min-w-0 ${
         isOver
-          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md'
+          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md scale-[1.01]'
           : 'border-border bg-card/70'
       }`}
     >
-      <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-border min-w-0">
-        <span className="font-extrabold text-[11px] lg:text-xs tracking-tight text-foreground flex items-center gap-1.5 min-w-0">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+      <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border min-w-0 gap-1">
+        <span className="font-extrabold text-[10px] sm:text-[11px] lg:text-xs tracking-tight text-foreground flex items-center gap-1 min-w-0 truncate">
+          <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
           <span className="truncate">{col.label}</span>
         </span>
-        <span className="text-[9.5px] font-mono font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
+        <span className="text-[8.5px] sm:text-[9.5px] font-mono font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
           {count}
         </span>
       </div>
 
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 flex-1 min-w-0">{children}</div>
+        <div className="space-y-1.5 sm:space-y-2 flex-1 min-w-0">{children}</div>
       </SortableContext>
     </div>
   );
@@ -243,12 +243,14 @@ export default function ContentTrackerPage() {
   const [selectedType, setSelectedType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [mobileStageFilter, setMobileStageFilter] = useState('ALL');
+  // Mobile Kanban column sizing mode: '4col' (default, 4 visible columns), '3col', '1col', 'all'
+  const [kanbanColumnMode, setKanbanColumnMode] = useState<'4col' | '3col' | '1col' | 'all'>('4col');
 
-  // Fast edge-triggered horizontal auto-scroll when dragging cards across stages
+  // Fast edge-triggered horizontal auto-scroll when dragging cards across stages (10x faster)
   const boardContainerRef = useHorizontalAutoScroll<HTMLDivElement>({
     isDragging: Boolean(activeDragItem),
-    edgeThreshold: 80,
-    maxSpeed: 28,
+    maxSpeed: 70,
+    minSpeed: 16,
   });
 
   // Drag & drop sensors: MouseSensor for instant desktop drag, TouchSensor with delay to allow smooth page scroll
@@ -661,28 +663,95 @@ export default function ContentTrackerPage() {
       {/* KANBAN VIEW */}
       {viewMode === 'kanban' && (
         <DndContext
+          autoScroll={false}
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
+          {/* Mobile Kanban Column View Selector */}
+          <div className="flex md:hidden items-center justify-between gap-1 bg-muted/60 p-1 rounded-lg border border-border text-[11px] mb-2">
+            <span className="text-[10px] font-mono font-bold text-muted-foreground px-1.5 flex items-center gap-1 shrink-0">
+              <Kanban className="h-3.5 w-3.5 text-[#FF3B00]" /> Columns:
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('4col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '4col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Show 4 columns across mobile screen"
+              >
+                4 cols
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('3col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '3col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Show 3 wider columns"
+              >
+                3 cols
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('1col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '1col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Focus on 1 column"
+              >
+                1 col
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('all')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === 'all'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="All columns overview"
+              >
+                All
+              </button>
+            </div>
+          </div>
+
           {/* Mobile scroll hint */}
-          <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
-            ← Scroll to see all stages · Hold a card to drag near edges to auto-scroll →
+          <p className="md:hidden text-[9.5px] text-muted-foreground/80 font-mono text-center pb-1">
+            ← Drag near edges to auto-scroll fast across columns →
           </p>
           <div
             ref={boardContainerRef}
-            className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-2 lg:gap-2.5"
+            className="flex overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x md:grid md:grid-cols-6 md:overflow-x-visible gap-1.5 sm:gap-2 lg:gap-2.5"
           >
             {columns
               .filter((col) => mobileStageFilter === 'ALL' || mobileStageFilter === col.id)
               .map((col) => {
                 const colItems = contentItems.filter((i) => i.status === col.id);
+                const colWidthClass =
+                  kanbanColumnMode === '4col'
+                    ? 'w-[23.5vw] min-w-[82px] max-w-[125px] sm:w-[23vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                    : kanbanColumnMode === '3col'
+                    ? 'w-[31.5vw] min-w-[110px] max-w-[160px] sm:w-[31vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                    : kanbanColumnMode === '1col'
+                    ? 'w-[86vw] min-w-[86vw] max-w-[360px] sm:w-[340px] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                    : 'w-[15.8vw] min-w-[58px] max-w-[85px] sm:w-[16vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink';
+
                 return (
                   <div
                     key={col.id}
-                    className="w-[80vw] min-w-[80vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink"
+                    className={colWidthClass}
                   >
                     <DroppableTrackerColumn
                       col={col}
@@ -699,9 +768,9 @@ export default function ContentTrackerPage() {
                         />
                       ))}
                       {colItems.length === 0 && (
-                        <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border/60 p-2 text-center">
-                          <p className="text-[10px] font-semibold text-muted-foreground/60">
-                            Drop here or use selector above
+                        <div className="flex h-20 sm:h-24 items-center justify-center rounded-lg border border-dashed border-border/60 p-1 text-center">
+                          <p className="text-[9px] font-semibold text-muted-foreground/50">
+                            Drop here
                           </p>
                         </div>
                       )}

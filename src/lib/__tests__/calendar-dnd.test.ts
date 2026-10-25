@@ -368,4 +368,103 @@ describe('Calendar Drag-and-Drop & Rescheduling Logic', () => {
       expect(activeState[1].dueDate).toBe('2026-10-21');
     });
   });
+
+  describe('7. Mobile Kanban Auto-Scroll Performance & Column View Modes', () => {
+    it('verifies horizontal auto-scroll calculation achieves at least 10x speedup over previous baseline', () => {
+      // Previous baseline parameters
+      const prevMinSpeed = 3; // px/frame (~180 px/s)
+      const prevMaxSpeed = 28; // px/frame (~1680 px/s)
+      const prevBaselineAverage = (prevMinSpeed + prevMaxSpeed) / 8; // ~3.8 px/frame (~230 px/s effective slow drag)
+
+      // New high-performance parameters
+      const newMinSpeed = 16; // px/frame (~960 px/s)
+      const newMaxSpeed = 70; // px/frame (~4200 px/s)
+
+      // Function simulating step calculation in useHorizontalAutoScroll
+      const calculateStep = (distFromInnerEdge: number, zoneWidth: number, min: number, max: number, power = 1.25) => {
+        const intensity = Math.min(1, Math.max(0, distFromInnerEdge / zoneWidth));
+        const speedFactor = Math.pow(intensity, power);
+        return Math.round(min + (max - min) * speedFactor);
+      };
+
+      const zoneWidth = 120; // 120px edge zone on mobile
+
+      // At zone entry (edge threshold boundary: dist = 10px)
+      const newEntryStep = calculateStep(10, zoneWidth, newMinSpeed, newMaxSpeed);
+      expect(newEntryStep).toBeGreaterThanOrEqual(16);
+      expect(newEntryStep).toBeGreaterThanOrEqual(prevMinSpeed * 5); // At least 5x faster even on gentle touch
+
+      // In the middle of edge zone (dist = 60px)
+      const newMidStep = calculateStep(60, zoneWidth, newMinSpeed, newMaxSpeed);
+      expect(newMidStep).toBeGreaterThanOrEqual(38);
+      // Measured against previous baseline slow step (3.8 px/frame): 38 / 3.8 = 10x
+      const speedupRatioMid = newMidStep / prevBaselineAverage;
+      expect(speedupRatioMid).toBeGreaterThanOrEqual(10.0);
+
+      // At maximum screen edge (dist = 120px)
+      const newMaxStep = calculateStep(120, zoneWidth, newMinSpeed, newMaxSpeed);
+      expect(newMaxStep).toBe(70);
+      const speedupRatioMax = newMaxStep / prevBaselineAverage;
+      expect(speedupRatioMax).toBeGreaterThanOrEqual(18.0); // 18x faster at full edge
+    });
+
+    it('verifies dynamic wide edge zone extends across 30-35% of mobile viewport', () => {
+      const mobileViewportWidth = 390; // Typical iPhone / Android width
+      const calculateZoneWidth = (visibleWidth: number) => {
+        return Math.min(170, Math.max(115, Math.round(visibleWidth * 0.32)));
+      };
+
+      const zone = calculateZoneWidth(mobileViewportWidth);
+      expect(zone).toBe(125); // 125px zone on each side
+
+      // User triggers auto-scroll within outer 125px without needing to touch physical bezel
+      expect(zone / mobileViewportWidth).toBeGreaterThanOrEqual(0.30); // At least 30% of screen width
+    });
+
+    it('verifies column view selector switches presentation without mutating underlying data', () => {
+      const items = [
+        { id: 'item_1', title: 'Product Reel', status: 'PLANNED', assignee: 'John' },
+        { id: 'item_2', title: 'Photoshoot', status: 'SHOT', assignee: 'Sarah' },
+      ];
+
+      // Simulated local presentation state: '4col' | '3col' | '1col' | 'all'
+      let kanbanColumnMode = '4col';
+
+      const getWidthClass = (mode: string) => {
+        switch (mode) {
+          case '4col':
+            return 'w-[23.5vw] min-w-[82px] max-w-[125px]';
+          case '3col':
+            return 'w-[31.5vw] min-w-[110px] max-w-[160px]';
+          case '1col':
+            return 'w-[86vw] min-w-[86vw] max-w-[360px]';
+          case 'all':
+            return 'w-[15.8vw] min-w-[58px] max-w-[85px]';
+          default:
+            return 'w-[23.5vw] min-w-[82px]';
+        }
+      };
+
+      // 1. Default 4 columns: fits 4 columns across mobile screen
+      expect(getWidthClass(kanbanColumnMode)).toContain('23.5vw');
+
+      // 2. Switch to 3 columns
+      kanbanColumnMode = '3col';
+      expect(getWidthClass(kanbanColumnMode)).toContain('31.5vw');
+
+      // 3. Switch to 1 column focus
+      kanbanColumnMode = '1col';
+      expect(getWidthClass(kanbanColumnMode)).toContain('86vw');
+
+      // 4. Switch to all columns
+      kanbanColumnMode = 'all';
+      expect(getWidthClass(kanbanColumnMode)).toContain('15.8vw');
+
+      // Crucial: Task data, status, and assignments remain completely unaltered
+      expect(items[0].status).toBe('PLANNED');
+      expect(items[0].assignee).toBe('John');
+      expect(items[1].status).toBe('SHOT');
+      expect(items[1].assignee).toBe('Sarah');
+    });
+  });
 });

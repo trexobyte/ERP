@@ -82,7 +82,7 @@ function SortableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border border-border bg-background shadow-xs space-y-2 hover:border-[#FF3B00] transition-all select-none group ${
+      className={`rounded-lg border border-border bg-background shadow-xs space-y-1.5 hover:border-[#FF3B00] transition-all select-none group min-w-0 ${
         isDragging ? 'opacity-25 scale-95 ring-2 ring-[#FF3B00] shadow-xl z-30' : 'opacity-100'
       }`}
     >
@@ -90,12 +90,12 @@ function SortableTaskCard({
       <div
         {...listeners}
         {...attributes}
-        className="flex items-center justify-between px-3.5 pt-3.5 cursor-grab active:cursor-grabbing"
+        className="flex items-center justify-between px-2 pt-2 md:px-3.5 md:pt-3.5 cursor-grab active:cursor-grabbing min-w-0"
       >
-        <div className="flex items-center gap-1.5">
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 shrink-0" />
+        <div className="flex items-center gap-1 min-w-0">
+          <GripVertical className="h-2.5 w-2.5 md:h-3.5 md:w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 shrink-0" />
           <span
-            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+            className={`text-[8px] md:text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
               task.urgency === 'URGENT' ? 'bg-[#FF3B00] text-white' : 'bg-muted text-muted-foreground'
             }`}
           >
@@ -110,35 +110,35 @@ function SortableTaskCard({
             type="checkbox"
             checked={task.status === 'DONE'}
             onChange={() => onCheckboxClick(task)}
-            className="h-4 w-4 rounded border-input text-[#FF3B00] cursor-pointer"
+            className="h-3.5 w-3.5 md:h-4 md:w-4 rounded border-input text-[#FF3B00] cursor-pointer"
           />
         </div>
       </div>
 
-      <div className="px-3.5">
-        <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors line-clamp-2 break-words leading-snug select-none">
+      <div className="px-2 md:px-3.5 min-w-0">
+        <h4 className="font-bold text-[10.5px] sm:text-xs md:text-xs text-foreground group-hover:text-[#FF3B00] transition-colors line-clamp-2 break-words leading-tight select-none min-w-0">
           {task.title}
         </h4>
       </div>
 
       {task.client && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground px-3.5">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: task.client.color }} />
+        <div className="flex items-center gap-1 text-[8.5px] sm:text-[9.5px] md:text-[11px] font-medium text-muted-foreground px-2 md:px-3.5 min-w-0">
+          <span className="h-1.5 w-1.5 md:h-2 md:w-2 rounded-full shrink-0" style={{ backgroundColor: task.client.color }} />
           <span className="truncate">{task.client.name}</span>
         </div>
       )}
 
       {task.contentItem && (
-        <span className="text-[#FF3B00] text-[10px] flex items-center gap-1 font-mono truncate px-3.5">
-          <LinkIcon className="h-3 w-3 shrink-0" /> <span className="truncate">Linked to {task.contentItem.type?.replace(/_/g, ' ')}</span>
+        <span className="text-[#FF3B00] text-[8px] sm:text-[9px] md:text-[10px] flex items-center gap-1 font-mono truncate px-2 md:px-3.5 min-w-0">
+          <LinkIcon className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" /> <span className="truncate">Linked to {task.contentItem.type?.replace(/_/g, ' ')}</span>
         </span>
       )}
 
       {/* Footer */}
-      <div className="px-3.5 pb-3 border-t border-border/40 pt-2 space-y-2">
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
-          <span>Due {formatLocalDate(task.dueDate)}</span>
-          <span className="truncate max-w-[100px] text-right">{task.assignee?.name}</span>
+      <div className="px-2 pb-2 border-t border-border/40 pt-1 md:px-3.5 md:pb-3 md:pt-2 space-y-1">
+        <div className="flex items-center justify-between text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground font-mono gap-1 min-w-0">
+          <span className="truncate">Due {formatLocalDate(task.dueDate)}</span>
+          <span className="truncate max-w-[60px] md:max-w-[100px] text-right">{task.assignee?.name?.split(' ')[0] || task.assignee?.name}</span>
         </div>
 
         {/* Mobile Quick Status Mover */}
@@ -150,7 +150,7 @@ function SortableTaskCard({
             <select
               value={task.status}
               onChange={(e) => onStatusChange(task.id, e.target.value)}
-              className="w-full rounded border border-border bg-background px-2 py-1 text-[10px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
+              className="w-full rounded border border-border bg-background px-1 sm:px-1.5 py-0.5 text-[8.5px] sm:text-[9.5px] md:text-[10px] font-bold outline-hidden focus:border-[#FF3B00] cursor-pointer"
               style={{ color: currentStatus?.color || '#64748B' }}
             >
               {statusOptions.map((s) => (
@@ -183,24 +183,24 @@ function DroppableTaskColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-xl border p-4 min-h-[520px] transition-all ${
+      className={`flex flex-col rounded-xl border p-1.5 sm:p-2.5 md:p-4 min-h-[440px] md:min-h-[520px] transition-all min-w-0 ${
         isOver
-          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md'
+          ? 'border-[#FF3B00] bg-[#FF3B00]/15 ring-2 ring-[#FF3B00] shadow-md scale-[1.01]'
           : 'border-border bg-card'
       }`}
     >
-      <div className="flex items-center justify-between border-b border-border pb-2 mb-3">
-        <span className="font-extrabold text-sm tracking-tight text-foreground flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: col.color }} />
-          {col.label}
+      <div className="flex items-center justify-between border-b border-border pb-1.5 mb-2 gap-1 min-w-0">
+        <span className="font-extrabold text-[10.5px] sm:text-xs md:text-sm tracking-tight text-foreground flex items-center gap-1.5 min-w-0 truncate">
+          <span className="h-2 w-2 md:h-2.5 md:w-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
+          <span className="truncate">{col.label}</span>
         </span>
-        <span className="text-xs font-mono font-bold bg-muted px-2 py-0.5 rounded text-muted-foreground">
+        <span className="text-[9px] md:text-xs font-mono font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
           {count}
         </span>
       </div>
 
       <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-3 flex-1">{children}</div>
+        <div className="space-y-1.5 sm:space-y-2 md:space-y-3 flex-1 min-w-0">{children}</div>
       </SortableContext>
     </div>
   );
@@ -240,12 +240,14 @@ export default function TasksPage() {
   const [users, setUsers] = useState<any[]>(cachedUsers || []);
   const [loading, setLoading] = useState(() => !cachedTasks || cachedTasks.length === 0);
   const [activeDragTask, setActiveDragTask] = useState<any | null>(null);
+  // Mobile Kanban column sizing mode: '4col' (default, 4 visible columns), '3col', '1col', 'all'
+  const [kanbanColumnMode, setKanbanColumnMode] = useState<'4col' | '3col' | '1col' | 'all'>('4col');
 
-  // Fast edge-triggered horizontal auto-scroll when dragging tasks across columns
+  // Fast edge-triggered horizontal auto-scroll when dragging tasks across columns (10x faster)
   const boardContainerRef = useHorizontalAutoScroll<HTMLDivElement>({
     isDragging: Boolean(activeDragTask),
-    edgeThreshold: 80,
-    maxSpeed: 28,
+    maxSpeed: 70,
+    minSpeed: 16,
   });
 
   // Drag & drop sensors: MouseSensor for desktop, TouchSensor with delay to allow smooth page scroll
@@ -766,19 +768,77 @@ export default function TasksPage() {
       {/* VIEW B: KANBAN VIEW */}
       {viewMode === 'kanban' && (
         <DndContext
+          autoScroll={false}
           sensors={sensors}
           collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
+          {/* Mobile Kanban Column View Selector */}
+          <div className="flex md:hidden items-center justify-between gap-1 bg-muted/60 p-1 rounded-lg border border-border text-[11px] mb-2">
+            <span className="text-[10px] font-mono font-bold text-muted-foreground px-1.5 flex items-center gap-1 shrink-0">
+              <Kanban className="h-3.5 w-3.5 text-[#FF3B00]" /> Columns:
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('4col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '4col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Show compact columns"
+              >
+                4 cols
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('3col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '3col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Show 3 wider columns"
+              >
+                3 cols
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('1col')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === '1col'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="Focus on 1 column"
+              >
+                1 col
+              </button>
+              <button
+                type="button"
+                onClick={() => setKanbanColumnMode('all')}
+                className={`px-2 py-0.5 rounded font-bold transition-all text-[10.5px] cursor-pointer ${
+                  kanbanColumnMode === 'all'
+                    ? 'bg-[#FF3B00] text-white shadow-2xs font-black'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                title="All columns overview"
+              >
+                All
+              </button>
+            </div>
+          </div>
+
           {/* Mobile scroll hint */}
-          <p className="md:hidden text-[10px] text-muted-foreground font-mono text-center pb-1 opacity-70">
-            ← Scroll between columns · Drag near edges to auto-scroll · Use selector to move tasks →
+          <p className="md:hidden text-[9.5px] text-muted-foreground/80 font-mono text-center pb-1">
+            ← Drag near edges to auto-scroll fast across columns · Use selector to move tasks →
           </p>
           <div
             ref={boardContainerRef}
-            className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x"
+            className="flex md:grid md:grid-cols-3 gap-1.5 sm:gap-2.5 md:gap-4 overflow-x-auto pb-6 pt-1 select-none scrollbar-thin snap-x"
           >
             {[
               { key: 'TO_DO', label: 'To Do', color: '#64748B' },
@@ -786,9 +846,17 @@ export default function TasksPage() {
               { key: 'DONE', label: 'Completed', color: '#10B981' },
             ].map((col) => {
               const colTasks = tasks.filter((t) => t.status === col.key);
+              const colWidthClass =
+                kanbanColumnMode === '4col'
+                  ? 'w-[23.5vw] min-w-[82px] max-w-[125px] sm:w-[23vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                  : kanbanColumnMode === '3col'
+                  ? 'w-[31.5vw] min-w-[110px] max-w-[160px] sm:w-[31vw] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                  : kanbanColumnMode === '1col'
+                  ? 'w-[86vw] min-w-[86vw] max-w-[360px] sm:w-[340px] shrink-0 snap-start md:w-auto md:min-w-0 md:max-w-none md:shrink'
+                  : 'w-[31.5vw] min-w-[100px] sm:w-auto md:w-auto md:min-w-0 md:max-w-none md:shrink';
 
               return (
-                <div key={col.key} className="w-[80vw] sm:w-[320px] md:w-auto min-w-[80vw] sm:min-w-[320px] md:min-w-0 shrink-0 snap-start">
+                <div key={col.key} className={colWidthClass}>
                   <DroppableTaskColumn
                     col={col}
                     count={colTasks.length}
@@ -804,8 +872,8 @@ export default function TasksPage() {
                       />
                     ))}
                     {colTasks.length === 0 && (
-                      <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/60 p-4 text-center">
-                        <p className="text-xs font-semibold text-muted-foreground/60">
+                      <div className="flex h-20 sm:h-24 md:h-32 items-center justify-center rounded-lg border border-dashed border-border/60 p-2 md:p-4 text-center">
+                        <p className="text-[9px] md:text-xs font-semibold text-muted-foreground/50">
                           Drop tasks here
                         </p>
                       </div>
