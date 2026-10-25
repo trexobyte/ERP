@@ -114,7 +114,7 @@ function SortableTaskCard({
         </div>
       </div>
 
-      <div className="px-3.5" {...listeners} {...attributes} style={{ cursor: 'grab' }}>
+      <div className="px-3.5">
         <h4 className="font-bold text-xs text-foreground group-hover:text-[#FF3B00] transition-colors line-clamp-2 break-words leading-snug select-none">
           {task.title}
         </h4>
@@ -249,8 +249,8 @@ export default function TasksPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 250,
-      tolerance: 6,
+      delay: 300,
+      tolerance: 8,
     },
   });
 

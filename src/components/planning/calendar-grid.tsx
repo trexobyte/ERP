@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, isSameMonth, isToday, parseISO } from 'date-fns';
+import { format, isSameMonth, isToday } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
-import { CheckSquare, Plus, Calendar as CalendarIcon, User, Sparkles } from 'lucide-react';
-import { toLocalDateKey, formatLocalDate, parseLocalDateKey } from '@/lib/date-utils';
+import { CheckSquare, Plus, Calendar as CalendarIcon, User, ArrowRight, Check } from 'lucide-react';
+import { toLocalDateKey, parseLocalDateKey, formatLocalDate } from '@/lib/date-utils';
 import { CalendarItemCard } from './calendar-item-card';
+import { CalendarTaskCard } from './calendar-task-card';
 
 interface DroppableDayCellProps {
   day: Date;
@@ -81,7 +82,7 @@ export function DroppableDayCell({
 
 /**
  * Mobile-optimized compact day cell for the Google Calendar-style month grid.
- * Fits the full month on mobile phone viewports without scrolling through weeks.
+ * Displays recognizable short item titles rather than only dots, plus clear +N more badge on busy days.
  */
 function MobileDroppableDayCell({
   day,
@@ -90,7 +91,7 @@ function MobileDroppableDayCell({
   isCurrentMonth,
   isSelected,
   itemsCount,
-  itemDots,
+  previewItems,
   onSelect,
 }: {
   day: Date;
@@ -99,7 +100,7 @@ function MobileDroppableDayCell({
   isCurrentMonth: boolean;
   isSelected: boolean;
   itemsCount: number;
-  itemDots: Array<{ id: string; color: string; isTask?: boolean }>;
+  previewItems: Array<{ id: string; title: string; color: string; isTask?: boolean }>;
   onSelect: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -113,7 +114,7 @@ function MobileDroppableDayCell({
       type="button"
       data-date={dateKey}
       onClick={onSelect}
-      className={`h-11 sm:h-13 p-1 rounded-lg flex flex-col items-center justify-between transition-all select-none relative cursor-pointer border ${
+      className={`min-h-[58px] sm:min-h-[64px] p-1 rounded-lg flex flex-col items-center justify-between transition-all select-none relative cursor-pointer border ${
         isOver
           ? 'border-[#FF3B00] bg-[#FF3B00]/25 ring-2 ring-[#FF3B00] scale-105 z-20'
           : isSelected
@@ -127,7 +128,7 @@ function MobileDroppableDayCell({
     >
       {/* Day Number */}
       <span
-        className={`text-[11px] sm:text-xs font-bold h-5.5 w-5.5 sm:h-6 sm:w-6 rounded-full flex items-center justify-center ${
+        className={`text-[11px] sm:text-xs font-bold h-5 w-5 sm:h-5.5 sm:w-5.5 rounded-full flex items-center justify-center ${
           isCurrentDay
             ? 'bg-[#FF3B00] text-white shadow-xs'
             : isSelected
@@ -140,20 +141,23 @@ function MobileDroppableDayCell({
         {format(day, 'd')}
       </span>
 
-      {/* Event Indicator Dots or Badge */}
-      <div className="flex items-center justify-center gap-0.5 sm:gap-1 w-full min-h-[6px] px-0.5">
+      {/* Item Previews (Recognizable short title + +N more indicator) */}
+      <div className="w-full flex flex-col gap-0.5 min-h-[18px] justify-end overflow-hidden">
         {itemsCount > 0 && (
           <>
-            {itemDots.slice(0, 3).map((dot) => (
-              <span
-                key={dot.id}
-                className="h-1.5 w-1.5 rounded-full shrink-0 shadow-2xs"
-                style={{ backgroundColor: dot.color }}
-              />
+            {previewItems.slice(0, 1).map((item) => (
+              <div
+                key={item.id}
+                className="w-full text-[7.5px] sm:text-[8px] font-bold leading-none px-1 py-0.5 rounded truncate text-white shadow-2xs text-left"
+                style={{ backgroundColor: item.color }}
+                title={item.title}
+              >
+                {item.isTask ? '✓ ' : ''}{item.title}
+              </div>
             ))}
-            {itemsCount > 3 && (
-              <span className="text-[8px] font-mono font-bold text-muted-foreground leading-none">
-                +{itemsCount - 3}
+            {itemsCount > 1 && (
+              <span className="text-[7px] sm:text-[7.5px] font-mono font-bold text-muted-foreground leading-none text-right pr-0.5">
+                +{itemsCount - 1} more
               </span>
             )}
           </>
@@ -173,6 +177,8 @@ interface CalendarGridProps {
   activeDragItem: any | null;
   onItemClick: (item: any) => void;
   onQuickAddOnDate: (dateKey: string) => void;
+  onRescheduleContent?: (id: string, dateKey: string) => Promise<void>;
+  onRescheduleTask?: (id: string, dateKey: string) => Promise<void>;
 }
 
 export function CalendarGrid({
@@ -185,6 +191,8 @@ export function CalendarGrid({
   activeDragItem,
   onItemClick,
   onQuickAddOnDate,
+  onRescheduleContent,
+  onRescheduleTask,
 }: CalendarGridProps) {
   const router = useRouter();
 
@@ -192,6 +200,7 @@ export function CalendarGrid({
   const [selectedDateKey, setSelectedDateKey] = useState<string>(() =>
     toLocalDateKey(new Date())
   );
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   // Parse currently selected date for header formatting
   const selectedDateObj = parseLocalDateKey(selectedDateKey);
@@ -214,6 +223,11 @@ export function CalendarGrid({
         task.client?.id === selectedClientFilter) &&
       (!task.clientId || !hiddenClients.includes(task.clientId))
   );
+
+  const showToast = (msg: string) => {
+    setFeedbackToast(msg);
+    setTimeout(() => setFeedbackToast(null), 4000);
+  };
 
   return (
     <div className="space-y-4">
@@ -262,9 +276,10 @@ export function CalendarGrid({
 
               const totalCount = dayItems.length + dayTasks.length;
 
-              const itemDots = [
+              const previewItems = [
                 ...dayItems.map((item) => ({
                   id: item.id,
+                  title: item.title,
                   color: item.isPersonal
                     ? '#8B5CF6'
                     : item.client?.color || '#FF3B00',
@@ -272,6 +287,7 @@ export function CalendarGrid({
                 })),
                 ...dayTasks.map((task) => ({
                   id: task.id,
+                  title: task.title,
                   color: task.urgency === 'URGENT' ? '#FF3B00' : '#3B82F6',
                   isTask: true,
                 })),
@@ -286,7 +302,7 @@ export function CalendarGrid({
                   isCurrentMonth={isCurrentMonthDate}
                   isSelected={isSelected}
                   itemsCount={totalCount}
-                  itemDots={itemDots}
+                  previewItems={previewItems}
                   onSelect={() => setSelectedDateKey(dateKey)}
                 />
               );
@@ -324,46 +340,55 @@ export function CalendarGrid({
             </button>
           </div>
 
+          {/* Feedback Toast */}
+          {feedbackToast && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-semibold animate-in fade-in">
+              <Check className="h-4 w-4 shrink-0" />
+              <span>{feedbackToast}</span>
+            </div>
+          )}
+
           {/* Agenda Events List */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {/* Scheduled Content Deliverables */}
             {selectedDayItems.map((item) => (
               <div
                 key={item.id}
-                onClick={() => onItemClick(item)}
-                className="p-2.5 rounded-lg border border-border bg-muted/30 hover:border-[#FF3B00] hover:bg-muted/60 transition-all cursor-pointer flex flex-col gap-1.5"
+                className="p-3 rounded-lg border border-border bg-muted/20 hover:border-[#FF3B00]/40 transition-all space-y-2"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{
-                        backgroundColor: item.isPersonal
-                          ? '#8B5CF6'
-                          : item.client?.color || '#FF3B00',
-                      }}
-                    />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
-                      {item.isPersonal ? 'Personal Shoot' : item.client?.name || 'Client'}
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40">
-                    {item.type?.replace(/_/g, ' ')}
-                  </span>
-                </div>
+                {/* Drag Item Card */}
+                <CalendarItemCard
+                  item={item}
+                  onClick={() => onItemClick(item)}
+                  isDragInProgress={Boolean(activeDragItem)}
+                />
 
-                <h4 className="text-xs font-bold text-foreground leading-snug line-clamp-2">
-                  {item.title}
-                </h4>
-
+                {/* Agenda Details & Move-to-Date Action */}
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono pt-1 border-t border-border/40">
-                  <span className="flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    <span>{item.assignee?.name || 'Unassigned'}</span>
+                  <span className="flex items-center gap-1 truncate max-w-[130px]">
+                    <User className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{item.assignee?.name || 'Unassigned'}</span>
                   </span>
-                  <span className="px-1.5 py-0.5 rounded bg-[#FF3B00]/10 text-[#FF3B00] font-bold text-[9px]">
-                    {item.status}
-                  </span>
+
+                  {/* Native Move to Date Picker */}
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[9.5px] font-bold text-muted-foreground flex items-center gap-1">
+                      <CalendarIcon className="h-3 w-3 text-[#FF3B00]" /> Move:
+                    </span>
+                    <input
+                      type="date"
+                      defaultValue={selectedDateKey}
+                      onChange={async (e) => {
+                        const newDate = e.target.value;
+                        if (newDate && newDate !== selectedDateKey && onRescheduleContent) {
+                          await onRescheduleContent(item.id, newDate);
+                          showToast(`Moved deliverable "${item.title}" to ${formatLocalDate(newDate)}`);
+                        }
+                      }}
+                      className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5 text-foreground cursor-pointer focus:border-[#FF3B00] outline-none"
+                      title="Select new date for deliverable"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -372,29 +397,41 @@ export function CalendarGrid({
             {selectedDayTasks.map((task) => (
               <div
                 key={task.id}
-                onClick={() => router.push('/tasks')}
-                className="p-2.5 rounded-lg border border-border bg-muted/20 hover:border-amber-500 hover:bg-muted/50 transition-all cursor-pointer flex items-center justify-between gap-2"
+                className="p-3 rounded-lg border border-border bg-muted/20 hover:border-amber-500/40 transition-all space-y-2"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <CheckSquare className="h-4 w-4 text-amber-500 shrink-0" />
-                  <div className="min-w-0">
-                    <h5 className="text-xs font-bold text-foreground truncate">
-                      {task.title}
-                    </h5>
-                    <p className="text-[10px] text-muted-foreground font-mono truncate">
-                      Task • {task.client?.name || 'General'}
-                    </p>
+                {/* Drag Task Card */}
+                <CalendarTaskCard
+                  task={task}
+                  onClick={() => router.push('/tasks')}
+                  isDragInProgress={Boolean(activeDragItem)}
+                />
+
+                {/* Agenda Details & Move-to-Date Action */}
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono pt-1 border-t border-border/40">
+                  <span className="truncate max-w-[130px]">
+                    {task.client?.name || 'General'} • {task.assignee?.name || 'Unassigned'}
+                  </span>
+
+                  {/* Native Move to Date Picker */}
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[9.5px] font-bold text-muted-foreground flex items-center gap-1">
+                      <CalendarIcon className="h-3 w-3 text-[#FF3B00]" /> Move:
+                    </span>
+                    <input
+                      type="date"
+                      defaultValue={selectedDateKey}
+                      onChange={async (e) => {
+                        const newDate = e.target.value;
+                        if (newDate && newDate !== selectedDateKey && onRescheduleTask) {
+                          await onRescheduleTask(task.id, newDate);
+                          showToast(`Moved task "${task.title}" to ${formatLocalDate(newDate)}`);
+                        }
+                      }}
+                      className="text-[10px] font-mono bg-background border border-border rounded px-1.5 py-0.5 text-foreground cursor-pointer focus:border-[#FF3B00] outline-none"
+                      title="Select new due date for task"
+                    />
                   </div>
                 </div>
-                <span
-                  className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded text-white shrink-0"
-                  style={{
-                    backgroundColor:
-                      task.urgency === 'URGENT' ? '#FF3B00' : '#3B82F6',
-                  }}
-                >
-                  {task.urgency}
-                </span>
               </div>
             ))}
 
@@ -474,32 +511,14 @@ export function CalendarGrid({
                   />
                 ))}
 
-                {/* Action Tasks Due On This Date */}
+                {/* Action Tasks Due On This Date - Now Fully Draggable! */}
                 {dayTasks.map((task) => (
-                  <div
+                  <CalendarTaskCard
                     key={task.id}
-                    className="group/task flex items-center justify-between gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold transition-all cursor-pointer shadow-2xs hover:scale-102 select-none"
-                    style={{
-                      backgroundColor:
-                        task.urgency === 'URGENT'
-                          ? '#FF3B00'
-                          : task.client?.color || '#3B82F6',
-                      color: '#FFFFFF',
-                    }}
-                    title={`Action Task: ${task.title} (${task.urgency}) - Due today`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push('/tasks');
-                    }}
-                  >
-                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                      <CheckSquare className="h-2.5 w-2.5 shrink-0 opacity-80" />
-                      <span className="truncate leading-tight">{task.title}</span>
-                    </div>
-                    <span className="text-[7.5px] uppercase px-1 rounded-xs bg-black/30 font-mono shrink-0">
-                      {task.urgency}
-                    </span>
-                  </div>
+                    task={task}
+                    onClick={() => router.push('/tasks')}
+                    isDragInProgress={Boolean(activeDragItem)}
+                  />
                 ))}
               </DroppableDayCell>
             );

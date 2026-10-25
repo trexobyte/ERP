@@ -117,8 +117,8 @@ export default function PlanningPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 250,
-      tolerance: 6,
+      delay: 300,
+      tolerance: 8,
     },
   });
 
@@ -257,8 +257,113 @@ export default function PlanningPage() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const item = contentItems.find((i) => i.id === event.active.id);
-    if (item) setActiveDragItem(item);
+    const activeData = event.active.data.current;
+    if (activeData?.type === 'task') {
+      setActiveDragItem({
+        ...activeData.task,
+        __isTask: true,
+      });
+    } else {
+      const item = contentItems.find((i) => i.id === event.active.id) || activeData?.item;
+      if (item) setActiveDragItem(item);
+    }
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(40);
+      } catch {}
+    }
+  };
+
+  const handleRescheduleContent = async (itemId: string, newDateKey: string) => {
+    if (!canEditCalendar) {
+      setToastError('You do not have permission to edit or reschedule calendar deliverables.');
+      return;
+    }
+    const previousItems = [...contentItems];
+    const activeItem = contentItems.find((i) => i.id === itemId);
+    const nextStatus = activeItem?.status === 'PLANNED' ? 'SCHEDULED' : (activeItem?.status || 'SCHEDULED');
+
+    setContentItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, scheduledDate: newDateKey, status: nextStatus }
+          : item
+      )
+    );
+
+    try {
+      const res = await fetch('/api/content', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: itemId,
+          scheduledDate: newDateKey,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setContentItems(previousItems);
+        setToastError(errData.error || `Failed to reschedule item (${res.status})`);
+        return;
+      }
+
+      const updatedItem = await res.json();
+      setContentItems((prev) => {
+        const next = prev.map((item) => (item.id === itemId ? updatedItem : item));
+        setCachedContent(next);
+        return next;
+      });
+      triggerRefresh();
+    } catch (err: any) {
+      console.error('Reschedule API error:', err);
+      setContentItems(previousItems);
+      setToastError(err?.message || 'Failed to reschedule item');
+    }
+  };
+
+  const handleRescheduleTask = async (taskId: string, newDateKey: string) => {
+    if (!canEditCalendar) {
+      setToastError('You do not have permission to reschedule calendar tasks.');
+      return;
+    }
+    const previousTasks = [...actionTasks];
+
+    setActionTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, dueDate: newDateKey } : t
+      )
+    );
+
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: taskId,
+          dueDate: newDateKey,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setActionTasks(previousTasks);
+        setToastError(errData.error || `Failed to reschedule task (${res.status})`);
+        return;
+      }
+
+      const updatedTask = await res.json();
+      setActionTasks((prev) => {
+        const next = prev.map((t) => (t.id === taskId ? updatedTask : t));
+        setCachedTasks(next);
+        return next;
+      });
+      triggerRefresh();
+    } catch (err: any) {
+      console.error('Task reschedule API error:', err);
+      setActionTasks(previousTasks);
+      setToastError(err?.message || 'Failed to reschedule task');
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -274,9 +379,9 @@ export default function PlanningPage() {
       return;
     }
 
-    const itemId = active.id as string;
     const targetId = over.id as string;
     const targetData = over.data?.current;
+    const activeData = active.data?.current;
 
     const isPoolTarget =
       targetId === 'pool' ||
@@ -284,6 +389,33 @@ export default function PlanningPage() {
       targetData?.type === 'pool' ||
       (targetData?.type === 'card' && !targetData?.item?.scheduledDate);
 
+    // Direct read of target date key - never recomputed from index math
+    const targetDateKey =
+      targetData?.type === 'day'
+        ? targetData.date || targetId
+        : targetData?.type === 'card'
+        ? (targetData.item?.scheduledDate ? toLocalDateKey(targetData.item.scheduledDate) : null)
+        : targetId.startsWith('20') && targetId.split('-').length === 3
+        ? targetId
+        : null;
+
+    // A: Handling Action Tasks from Task Urgency Tracker
+    if (activeData?.type === 'task') {
+      const task = activeData.task;
+      const taskId = task.id;
+
+      if (isPoolTarget) {
+        setToastError('Tasks require a due date and cannot be unscheduled to the unassigned pool.');
+        return;
+      }
+
+      if (!targetDateKey) return;
+      await handleRescheduleTask(taskId, targetDateKey);
+      return;
+    }
+
+    // B: Handling Content Items & Deliverables
+    const itemId = active.id as string;
     const previousItems = [...contentItems];
 
     if (isPoolTarget) {
@@ -327,58 +459,8 @@ export default function PlanningPage() {
       return;
     }
 
-    // Direct read of target date key - never recomputed from index math
-    const targetDateKey =
-      targetData?.type === 'day'
-        ? targetData.date || targetId
-        : targetData?.type === 'card'
-        ? (targetData.item?.scheduledDate ? toLocalDateKey(targetData.item.scheduledDate) : null)
-        : targetId.startsWith('20') && targetId.split('-').length === 3
-        ? targetId
-        : null;
-
     if (!targetDateKey) return;
-
-    const activeItem = contentItems.find((i) => i.id === itemId);
-    const nextStatus = activeItem?.status === 'PLANNED' ? 'SCHEDULED' : (activeItem?.status || 'SCHEDULED');
-
-    // Optimistically update local state immediately with exact date key (0ms lag)
-    setContentItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? { ...item, scheduledDate: targetDateKey, status: nextStatus }
-          : item
-      )
-    );
-
-    try {
-      const res = await fetch('/api/content', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: itemId,
-          scheduledDate: targetDateKey,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        const errMsg = errData.error || `Failed to schedule task (${res.status})`;
-        setContentItems(previousItems);
-        setToastError(errMsg);
-        return;
-      }
-
-      const updatedItem = await res.json();
-      setContentItems((prev) =>
-        prev.map((item) => (item.id === itemId ? updatedItem : item))
-      );
-      triggerRefresh();
-    } catch (err: any) {
-      console.error('Drag reschedule API error:', err);
-      setContentItems(previousItems);
-      setToastError(err?.message || 'Failed to schedule task');
-    }
+    await handleRescheduleContent(itemId, targetDateKey);
   };
 
   const handleSaveItemEdit = async (updatedData: any) => {
@@ -587,6 +669,8 @@ export default function PlanningPage() {
                 activeDragItem={activeDragItem}
                 onItemClick={(item) => setSelectedItem(item)}
                 onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
+                onRescheduleContent={handleRescheduleContent}
+                onRescheduleTask={handleRescheduleTask}
               />
             )}
 
@@ -621,28 +705,47 @@ export default function PlanningPage() {
             {/* Draggable Overlay Card for Smooth Drag Feedback */}
             <DragOverlay dropAnimation={null}>
               {activeDragItem ? (
-                <div
-                  className="rounded-lg px-2 py-1 text-[10px] font-semibold text-white shadow-2xl border-2 border-white/50 w-36 flex flex-col gap-0.5 select-none pointer-events-none opacity-90 scale-105"
-                  style={{
-                    backgroundColor: activeDragItem.isPersonal
-                      ? '#8B5CF6'
-                      : (activeDragItem.client?.color || '#FF3B00'),
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-1 pointer-events-none w-full">
-                    <span className="font-extrabold truncate leading-tight">
-                      {activeDragItem.isPersonal ? `🔒 ${activeDragItem.title}` : activeDragItem.title}
-                    </span>
-                    <span className="text-[8px] uppercase px-1 rounded-sm bg-black/40 font-mono shrink-0">
-                      {activeDragItem.isPersonal ? 'PERSONAL' : activeDragItem.type}
+                activeDragItem.__isTask ? (
+                  <div
+                    className="rounded px-2.5 py-1.5 text-[10px] font-bold text-white shadow-2xl border-2 border-white/60 flex items-center justify-between gap-2 select-none pointer-events-none opacity-95 scale-105 min-w-[140px]"
+                    style={{
+                      backgroundColor:
+                        activeDragItem.urgency === 'URGENT'
+                          ? '#FF3B00'
+                          : activeDragItem.client?.color || '#3B82F6',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="truncate">{activeDragItem.title}</span>
+                    </div>
+                    <span className="text-[8px] uppercase px-1 rounded-xs bg-black/40 font-mono shrink-0">
+                      {activeDragItem.urgency}
                     </span>
                   </div>
-                  {activeDragItem.assignee && (
-                    <span className="text-[8.5px] text-white/85 font-mono truncate pl-3.5 leading-none">
-                      {activeDragItem.assignee.name}
-                    </span>
-                  )}
-                </div>
+                ) : (
+                  <div
+                    className="rounded-lg px-2 py-1 text-[10px] font-semibold text-white shadow-2xl border-2 border-white/50 w-36 flex flex-col gap-0.5 select-none pointer-events-none opacity-90 scale-105"
+                    style={{
+                      backgroundColor: activeDragItem.isPersonal
+                        ? '#8B5CF6'
+                        : (activeDragItem.client?.color || '#FF3B00'),
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-1 pointer-events-none w-full">
+                      <span className="font-extrabold truncate leading-tight">
+                        {activeDragItem.isPersonal ? `🔒 ${activeDragItem.title}` : activeDragItem.title}
+                      </span>
+                      <span className="text-[8px] uppercase px-1 rounded-sm bg-black/40 font-mono shrink-0">
+                        {activeDragItem.isPersonal ? 'PERSONAL' : activeDragItem.type}
+                      </span>
+                    </div>
+                    {activeDragItem.assignee && (
+                      <span className="text-[8.5px] text-white/85 font-mono truncate pl-3.5 leading-none">
+                        {activeDragItem.assignee.name}
+                      </span>
+                    )}
+                  </div>
+                )
               ) : null}
             </DragOverlay>
           </DndContext>

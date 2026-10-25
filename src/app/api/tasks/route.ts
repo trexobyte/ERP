@@ -203,7 +203,7 @@ export async function PUT(req: Request) {
     if (!caller) {
       return unauthorizedResponse();
     }
-    if (!checkUserAction(caller, 'tasks', 'edit')) {
+    if (!checkUserAction(caller, 'tasks', 'edit') && !checkUserAction(caller, 'calendar', 'edit')) {
       return forbiddenResponse('You do not have permission to edit tasks.');
     }
     const userId = caller.id;

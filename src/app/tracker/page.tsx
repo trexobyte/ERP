@@ -93,7 +93,7 @@ function SortableTrackerCard({ item, onStatusChange, columns, canEdit }: { item:
       </div>
 
       {/* Card Title */}
-      <div className="px-2 min-w-0" {...listeners} {...attributes} style={{ cursor: 'grab' }}>
+      <div className="px-2 min-w-0">
         <h4 className="font-bold text-[11px] text-foreground group-hover:text-[#FF3B00] transition-colors leading-snug line-clamp-2 break-words min-w-0 select-none">
           {item.title}
         </h4>
@@ -252,8 +252,8 @@ export default function ContentTrackerPage() {
 
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 250,
-      tolerance: 6,
+      delay: 300,
+      tolerance: 8,
     },
   });
 

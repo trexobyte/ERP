@@ -7,6 +7,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { Plus, CheckSquare, Clock } from 'lucide-react';
 import { toLocalDateKey } from '@/lib/date-utils';
 import { CalendarItemCard } from './calendar-item-card';
+import { CalendarTaskCard } from './calendar-task-card';
 
 interface DroppableThreeDayColumnProps {
   day: Date;
@@ -157,32 +158,14 @@ export function CalendarThreeDayView({
                 />
               ))}
 
-              {/* Tasks */}
+              {/* Tasks - Now Fully Draggable! */}
               {dayTasks.map((task) => (
-                <div
+                <CalendarTaskCard
                   key={task.id}
-                  className="flex items-center justify-between gap-1 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-semibold transition-all cursor-pointer shadow-2xs hover:scale-102 select-none"
-                  style={{
-                    backgroundColor:
-                      task.urgency === 'URGENT'
-                        ? '#FF3B00'
-                        : task.client?.color || '#3B82F6',
-                    color: '#FFFFFF',
-                  }}
-                  title={`Action Task: ${task.title} (${task.urgency})`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push('/tasks');
-                  }}
-                >
-                  <div className="flex items-center gap-1 min-w-0 flex-1">
-                    <CheckSquare className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 opacity-90" />
-                    <span className="truncate leading-tight">{task.title}</span>
-                  </div>
-                  <span className="text-[7.5px] sm:text-[8px] uppercase px-1 rounded-xs bg-black/30 font-mono shrink-0">
-                    {task.urgency}
-                  </span>
-                </div>
+                  task={task}
+                  onClick={() => router.push('/tasks')}
+                  isDragInProgress={Boolean(activeDragItem)}
+                />
               ))}
 
               {dayItems.length === 0 && dayTasks.length === 0 && (
