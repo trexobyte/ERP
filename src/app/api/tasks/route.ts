@@ -31,10 +31,15 @@ export async function GET(req: Request) {
     const assigneeId = searchParams.get('assigneeId');
     const department = searchParams.get('department');
 
+    const cacheControl = req.headers.get('cache-control') || '';
+    const shouldBypassCache = cacheControl.includes('no-cache') || cacheControl.includes('no-store') || searchParams.has('_t');
+
     const cacheKey = `tasks:${clientId || ''}:${urgency || ''}:${status || ''}:${assigneeId || ''}:${department || ''}`;
-    const cached = await getCached<any[]>(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached);
+    if (!shouldBypassCache) {
+      const cached = await getCached<any[]>(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached);
+      }
     }
 
     const where: any = {};
@@ -249,6 +254,7 @@ export async function PUT(req: Request) {
     }
 
     await invalidateCache('tasks');
+    await invalidateCache('content');
     await invalidateCache('dashboard');
     return NextResponse.json(updatedTask);
   } catch (error) {

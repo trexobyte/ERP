@@ -109,6 +109,12 @@ export default function PlanningPage() {
   // Active drag item for DragOverlay
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
 
+  // Active recent update trackers to prevent background refetches from overwriting recent drag-and-drop operations with stale data
+  const recentContentUpdatesRef = React.useRef<Map<string, { dateKey: string | null; status?: string; timestamp: number }>>(new Map());
+  const recentTaskUpdatesRef = React.useRef<Map<string, { dateKey: string; timestamp: number }>>(new Map());
+  const contentFetchSeqRef = React.useRef(0);
+  const taskFetchSeqRef = React.useRef(0);
+
   // DnD Sensors: MouseSensor for desktop, TouchSensor with delay to allow smooth scrolling on mobile
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: {
@@ -170,11 +176,15 @@ export default function PlanningPage() {
   }, [cachedContent, contentItems.length, selectedClientFilter, myItemsOnly]);
 
   const fetchCalendarData = (retryCount = 0) => {
+    const seq = ++contentFetchSeqRef.current;
     const params = new URLSearchParams();
     if (selectedClientFilter) params.append('clientId', selectedClientFilter);
     if (myItemsOnly) params.append('myItemsOnly', 'true');
 
-    fetch(`/api/content?${params.toString()}`, { cache: 'no-store' })
+    fetch(`/api/content?${params.toString()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+    })
       .then(async (res) => {
         if (!res.ok) {
           console.warn('/api/content returned non-ok status:', res.status);
@@ -186,18 +196,38 @@ export default function PlanningPage() {
         return res.json();
       })
       .then((data) => {
+        if (seq !== contentFetchSeqRef.current) return;
         if (Array.isArray(data)) {
           const hasFilters = Boolean(selectedClientFilter || myItemsOnly);
           if (data.length > 0 || hasFilters) {
-            setContentItems(data);
-            if (!hasFilters) {
-              setCachedContent(data);
-              if (typeof window !== 'undefined') {
-                try {
-                  sessionStorage.setItem('trexo_cache_content', JSON.stringify(data));
-                } catch {}
+            setContentItems(() => {
+              const reconciled = data.map((serverItem) => {
+                const recent = recentContentUpdatesRef.current.get(serverItem.id);
+                if (recent && Date.now() - recent.timestamp < 15000) {
+                  if (recent.dateKey === null) {
+                    if (serverItem.scheduledDate !== null) {
+                      return { ...serverItem, scheduledDate: null, status: recent.status || 'PLANNED' };
+                    } else {
+                      recentContentUpdatesRef.current.delete(serverItem.id);
+                    }
+                  } else if (toLocalDateKey(serverItem.scheduledDate) !== recent.dateKey) {
+                    return { ...serverItem, scheduledDate: recent.dateKey, status: recent.status || serverItem.status };
+                  } else {
+                    recentContentUpdatesRef.current.delete(serverItem.id);
+                  }
+                }
+                return serverItem;
+              });
+              if (!hasFilters) {
+                setCachedContent(reconciled);
+                if (typeof window !== 'undefined') {
+                  try {
+                    sessionStorage.setItem('trexo_cache_content', JSON.stringify(reconciled));
+                  } catch {}
+                }
               }
-            }
+              return reconciled;
+            });
           } else if (contentItems.length === 0 && retryCount < 2) {
             setTimeout(() => fetchCalendarData(retryCount + 1), 600);
           }
@@ -212,7 +242,11 @@ export default function PlanningPage() {
   };
 
   const fetchActionTasks = (retryCount = 0) => {
-    fetch('/api/tasks', { cache: 'no-store' })
+    const seq = ++taskFetchSeqRef.current;
+    fetch('/api/tasks', {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+    })
       .then(async (res) => {
         if (!res.ok) {
           if (retryCount < 2) setTimeout(() => fetchActionTasks(retryCount + 1), 600);
@@ -221,14 +255,28 @@ export default function PlanningPage() {
         return res.json();
       })
       .then((data) => {
+        if (seq !== taskFetchSeqRef.current) return;
         if (Array.isArray(data) && data.length > 0) {
-          setActionTasks(data);
-          setCachedTasks(data);
-          if (typeof window !== 'undefined') {
-            try {
-              sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(data));
-            } catch {}
-          }
+          setActionTasks(() => {
+            const reconciled = data.map((serverTask) => {
+              const recent = recentTaskUpdatesRef.current.get(serverTask.id);
+              if (recent && Date.now() - recent.timestamp < 15000) {
+                if (toLocalDateKey(serverTask.dueDate) !== recent.dateKey) {
+                  return { ...serverTask, dueDate: recent.dateKey };
+                } else {
+                  recentTaskUpdatesRef.current.delete(serverTask.id);
+                }
+              }
+              return serverTask;
+            });
+            setCachedTasks(reconciled);
+            if (typeof window !== 'undefined') {
+              try {
+                sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(reconciled));
+              } catch {}
+            }
+            return reconciled;
+          });
         }
       })
       .catch((err) => {
@@ -349,13 +397,19 @@ export default function PlanningPage() {
       setToastError('You do not have permission to edit or reschedule calendar deliverables.');
       return;
     }
-    // Deep clone snapshot to eliminate shared object references
-    const previousItems = contentItems.map((i) => ({ ...i }));
     const activeItem = contentItems.find((i) => i.id === itemId);
     if (!activeItem) {
       console.warn(`Content item ${itemId} not found in contentItems`);
       return;
     }
+
+    const currentKey = activeItem.scheduledDate ? toLocalDateKey(activeItem.scheduledDate) : null;
+    if (currentKey === newDateKey) {
+      return;
+    }
+
+    const previousScheduledDate = activeItem.scheduledDate;
+    const previousStatus = activeItem.status;
 
     const nextStatus = newDateKey === null
       ? 'PLANNED'
@@ -363,19 +417,29 @@ export default function PlanningPage() {
       ? 'SCHEDULED'
       : (activeItem.status || 'SCHEDULED');
 
+    // Register active recent update to prevent background refetches from overwriting with stale data
+    recentContentUpdatesRef.current.set(itemId, {
+      dateKey: newDateKey,
+      status: nextStatus,
+      timestamp: Date.now(),
+    });
+
     // Single-record isolated optimistic update
     setContentItems((prev) =>
       prev.map((item) =>
         item.id === itemId
           ? { ...item, scheduledDate: newDateKey, status: nextStatus }
-          : { ...item }
+          : item
       )
     );
 
     try {
       const res = await fetch('/api/content', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify({
           id: itemId,
           scheduledDate: newDateKey,
@@ -384,21 +448,50 @@ export default function PlanningPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        setContentItems(previousItems);
+        recentContentUpdatesRef.current.delete(itemId);
+        // Roll back ONLY the affected item without affecting neighbors
+        setContentItems((prev) =>
+          prev.map((item) =>
+            item.id === itemId
+              ? { ...item, scheduledDate: previousScheduledDate, status: previousStatus }
+              : item
+          )
+        );
         setToastError(errData.error || `Failed to reschedule item (${res.status})`);
         return;
       }
 
       const updatedItem = await res.json();
       setContentItems((prev) => {
-        const next = prev.map((item) => (item.id === itemId ? { ...updatedItem } : { ...item }));
+        const next = prev.map((item) => (item.id === itemId ? { ...item, ...updatedItem } : item));
         setCachedContent(next);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('trexo_cache_content', JSON.stringify(next));
+          } catch {}
+        }
         return next;
       });
-      triggerRefresh();
+
+      // Broadcast to other tabs without self-refetching
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const syncChan = new BroadcastChannel('trexobyte_realtime_sync');
+          syncChan.postMessage({ type: 'REFRESH', timestamp: Date.now() });
+          syncChan.close();
+        } catch {}
+      }
     } catch (err: any) {
       console.error('Reschedule API error:', err);
-      setContentItems(previousItems);
+      recentContentUpdatesRef.current.delete(itemId);
+      // Roll back ONLY the affected item
+      setContentItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? { ...item, scheduledDate: previousScheduledDate, status: previousStatus }
+            : item
+        )
+      );
       setToastError(err?.message || 'Failed to reschedule item');
     }
   };
@@ -408,27 +501,41 @@ export default function PlanningPage() {
       setToastError('You do not have permission to reschedule calendar tasks.');
       return;
     }
-    // Deep clone snapshot to eliminate shared object references
-    const previousTasks = actionTasks.map((t) => ({ ...t }));
-    const taskExists = actionTasks.some((t) => t.id === taskId);
-    if (!taskExists) {
+    const existingTask = actionTasks.find((t) => t.id === taskId);
+    if (!existingTask) {
       console.warn(`Task ${taskId} not found in actionTasks`);
       return;
     }
+
+    const currentKey = existingTask.dueDate ? toLocalDateKey(existingTask.dueDate) : null;
+    if (currentKey === newDateKey) {
+      return;
+    }
+
+    const previousDueDate = existingTask.dueDate;
+
+    // Register active recent update to prevent background refetches from overwriting with stale data
+    recentTaskUpdatesRef.current.set(taskId, {
+      dateKey: newDateKey,
+      timestamp: Date.now(),
+    });
 
     // Single-record isolated optimistic update
     setActionTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
           ? { ...t, dueDate: newDateKey }
-          : { ...t }
+          : t
       )
     );
 
     try {
       const res = await fetch('/api/tasks', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
         body: JSON.stringify({
           id: taskId,
           dueDate: newDateKey,
@@ -437,21 +544,50 @@ export default function PlanningPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        setActionTasks(previousTasks);
+        recentTaskUpdatesRef.current.delete(taskId);
+        // Roll back ONLY the affected task without affecting neighbors
+        setActionTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? { ...t, dueDate: previousDueDate }
+              : t
+          )
+        );
         setToastError(errData.error || `Failed to reschedule task (${res.status})`);
         return;
       }
 
       const updatedTask = await res.json();
       setActionTasks((prev) => {
-        const next = prev.map((t) => (t.id === taskId ? { ...updatedTask } : { ...t }));
+        const next = prev.map((t) => (t.id === taskId ? { ...t, ...updatedTask } : t));
         setCachedTasks(next);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(next));
+          } catch {}
+        }
         return next;
       });
-      triggerRefresh();
+
+      // Broadcast to other tabs without self-refetching
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const syncChan = new BroadcastChannel('trexobyte_realtime_sync');
+          syncChan.postMessage({ type: 'REFRESH', timestamp: Date.now() });
+          syncChan.close();
+        } catch {}
+      }
     } catch (err: any) {
       console.error('Task reschedule API error:', err);
-      setActionTasks(previousTasks);
+      recentTaskUpdatesRef.current.delete(taskId);
+      // Roll back ONLY the affected task
+      setActionTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? { ...t, dueDate: previousDueDate }
+            : t
+        )
+      );
       setToastError(err?.message || 'Failed to reschedule task');
     }
   };

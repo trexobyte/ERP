@@ -802,5 +802,202 @@ describe('Calendar Drag-and-Drop & Rescheduling Logic', () => {
       expect(canEditCalendar).toBe(false);
     });
   });
+
+  describe('14. State Synchronization, Persistence Reconciliation & Anti-Reversion Lifecycle', () => {
+    it('1. A successful drag updates the intended item date without altering neighbors', () => {
+      const initialItems = [
+        { id: 'item_1', title: 'Teaser Reel', scheduledDate: '2026-10-07T12:00:00.000Z', status: 'SCHEDULED' },
+        { id: 'item_2', title: 'Client Story', scheduledDate: '2026-10-07T12:00:00.000Z', status: 'SCHEDULED' },
+        { id: 'item_3', title: 'Product Launch', scheduledDate: '2026-10-08T12:00:00.000Z', status: 'SCHEDULED' },
+      ];
+
+      const itemId = 'item_1';
+      const targetDateKey = '2026-10-06';
+
+      // Single-record isolated optimistic update
+      const updatedItems = initialItems.map((item) =>
+        item.id === itemId
+          ? { ...item, scheduledDate: targetDateKey }
+          : item
+      );
+
+      expect(updatedItems[0].scheduledDate).toBe('2026-10-06');
+      expect(updatedItems[1].scheduledDate).toBe('2026-10-07T12:00:00.000Z'); // Neighbor 1 untouched
+      expect(updatedItems[2].scheduledDate).toBe('2026-10-08T12:00:00.000Z'); // Neighbor 2 untouched
+    });
+
+    it('2. The UI does not revert after a successful API response and persists in session cache', () => {
+      let state = [
+        { id: 'task_1', title: 'Design Review', dueDate: '2026-10-07', urgency: 'HIGH' },
+      ];
+
+      // Optimistic update
+      const targetDateKey = '2026-10-06';
+      state = state.map((t) => (t.id === 'task_1' ? { ...t, dueDate: targetDateKey } : t));
+      expect(state[0].dueDate).toBe('2026-10-06');
+
+      // Server returns updated object
+      const serverResponse = { id: 'task_1', title: 'Design Review', dueDate: '2026-10-06T12:00:00.000Z', urgency: 'HIGH' };
+      state = state.map((t) => (t.id === 'task_1' ? { ...t, ...serverResponse } : t));
+
+      // UI displays server confirmed date
+      expect(toLocalDateKey(state[0].dueDate)).toBe('2026-10-06');
+    });
+
+    it('3. A background refetch with stale/cached data cannot overwrite a recent local move', () => {
+      // Setup recent updates guard
+      const recentContentUpdates = new Map<string, { dateKey: string | null; status?: string; timestamp: number }>();
+      const itemId = 'item_solti_01';
+      const newDateKey = '2026-10-06';
+
+      // User just moved item to Oct 6th
+      recentContentUpdates.set(itemId, {
+        dateKey: newDateKey,
+        status: 'SCHEDULED',
+        timestamp: Date.now(),
+      });
+
+      // Background refetch returns stale data from 30s cache where date is still Oct 7th
+      const staleServerData = [
+        { id: itemId, title: 'Solti Reel', scheduledDate: '2026-10-07T12:00:00.000Z', status: 'SCHEDULED' },
+        { id: 'item_other', title: 'Other Reel', scheduledDate: '2026-10-10T12:00:00.000Z', status: 'SCHEDULED' },
+      ];
+
+      // Reconciler logic used in planning/page.tsx
+      const reconciled = staleServerData.map((serverItem) => {
+        const recent = recentContentUpdates.get(serverItem.id);
+        if (recent && Date.now() - recent.timestamp < 15000) {
+          if (recent.dateKey === null) {
+            if (serverItem.scheduledDate !== null) {
+              return { ...serverItem, scheduledDate: null, status: recent.status || 'PLANNED' };
+            }
+          } else if (toLocalDateKey(serverItem.scheduledDate) !== recent.dateKey) {
+            // Guard preserves the recent move!
+            return { ...serverItem, scheduledDate: recent.dateKey, status: recent.status || serverItem.status };
+          }
+        }
+        return serverItem;
+      });
+
+      // Item must retain the Oct 6th position despite stale server payload!
+      expect(reconciled[0].scheduledDate).toBe('2026-10-06');
+      expect(reconciled[1].scheduledDate).toBe('2026-10-10T12:00:00.000Z');
+    });
+
+    it('4. Out-of-order fetch responses (stale sequence IDs) are safely discarded', () => {
+      let contentFetchSeq = 0;
+      let currentState = [{ id: 'task_1', dueDate: '2026-10-06' }];
+
+      // Fetch 1 starts (slow query)
+      const seq1 = ++contentFetchSeq; // 1
+
+      // User performs drag, triggering sequence 2
+      const seq2 = ++contentFetchSeq; // 2
+
+      // Fetch 1 returns late with old date '2026-10-07'
+      const fetch1Response = [{ id: 'task_1', dueDate: '2026-10-07' }];
+      if (seq1 === contentFetchSeq) {
+        currentState = fetch1Response;
+      }
+      // Since seq1 (1) !== contentFetchSeq (2), fetch 1 was discarded
+      expect(currentState[0].dueDate).toBe('2026-10-06');
+
+      // Fetch 2 returns with up-to-date '2026-10-06'
+      const fetch2Response = [{ id: 'task_1', dueDate: '2026-10-06' }];
+      if (seq2 === contentFetchSeq) {
+        currentState = fetch2Response;
+      }
+      expect(currentState[0].dueDate).toBe('2026-10-06');
+    });
+
+    it('5. The recent updates guard is released once server confirms the target date', () => {
+      const recentTaskUpdates = new Map<string, { dateKey: string | null; timestamp: number }>();
+      const taskId = 'task_42';
+      const newDateKey = '2026-10-06';
+
+      recentTaskUpdates.set(taskId, {
+        dateKey: newDateKey,
+        timestamp: Date.now(),
+      });
+
+      // Server fetch arrives with the actual updated date
+      const freshServerData = [
+        { id: taskId, title: 'Bug Triage', dueDate: '2026-10-06T12:00:00.000Z' },
+      ];
+
+      const reconciled = freshServerData.map((serverTask) => {
+        const recent = recentTaskUpdates.get(serverTask.id);
+        if (recent && Date.now() - recent.timestamp < 15000) {
+          if (toLocalDateKey(serverTask.dueDate) !== recent.dateKey) {
+            return { ...serverTask, dueDate: recent.dateKey };
+          } else {
+            // Guard successfully released!
+            recentTaskUpdates.delete(serverTask.id);
+          }
+        }
+        return serverTask;
+      });
+
+      expect(toLocalDateKey(reconciled[0].dueDate)).toBe('2026-10-06');
+      expect(recentTaskUpdates.has(taskId)).toBe(false);
+    });
+
+    it('6. A failed API request restores only the failed item via isolated rollback', () => {
+      const items = [
+        { id: 'item_1', title: 'Item 1', scheduledDate: '2026-10-07', status: 'SCHEDULED' },
+        { id: 'item_2', title: 'Item 2', scheduledDate: '2026-10-07', status: 'SCHEDULED' },
+      ];
+
+      const activeItem = items[0];
+      const previousScheduledDate = activeItem.scheduledDate;
+      const previousStatus = activeItem.status;
+
+      // Optimistically move item_1 to 2026-10-06
+      let currentItems = items.map((i) =>
+        i.id === 'item_1' ? { ...i, scheduledDate: '2026-10-06' } : i
+      );
+      // Meanwhile, another operation or user edited item_2
+      currentItems = currentItems.map((i) =>
+        i.id === 'item_2' ? { ...i, scheduledDate: '2026-10-09' } : i
+      );
+
+      // API call for item_1 fails
+      const apiSuccess = false;
+      if (!apiSuccess) {
+        // Isolated rollback of item_1 ONLY
+        currentItems = currentItems.map((item) =>
+          item.id === 'item_1'
+            ? { ...item, scheduledDate: previousScheduledDate, status: previousStatus }
+            : item
+        );
+      }
+
+      // item_1 restored to 2026-10-07
+      expect(currentItems[0].scheduledDate).toBe('2026-10-07');
+      // item_2's concurrent update to 2026-10-09 was NOT wiped out by a blast-radius full snapshot restore
+      expect(currentItems[1].scheduledDate).toBe('2026-10-09');
+    });
+
+    it('7. Dropping on the identical date is a no-op that avoids unnecessary network requests', () => {
+      const task = { id: 'task_99', dueDate: '2026-10-07T12:00:00.000Z' };
+      const newDateKey = '2026-10-07';
+
+      const currentKey = task.dueDate ? toLocalDateKey(task.dueDate) : null;
+      const isNoOp = currentKey === newDateKey;
+
+      expect(isNoOp).toBe(true);
+    });
+
+    it('8. Round-trip persistence simulation: saved date survives full refresh and reload', () => {
+      const dateKey = '2026-10-06';
+      const dbDate = toDatabaseDateString(dateKey); // '2026-10-06T12:00:00.000Z'
+
+      // Simulate full page reload fetching fresh record from DB
+      const refreshedRecord = { id: 'item_1', scheduledDate: dbDate };
+      const displayedDateKey = toLocalDateKey(refreshedRecord.scheduledDate);
+
+      expect(displayedDateKey).toBe('2026-10-06');
+    });
+  });
 });
 

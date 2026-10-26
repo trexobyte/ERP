@@ -34,10 +34,15 @@ export async function GET(req: Request) {
 
     const userId = caller.id;
 
+    const cacheControl = req.headers.get('cache-control') || '';
+    const shouldBypassCache = cacheControl.includes('no-cache') || cacheControl.includes('no-store') || searchParams.has('_t');
+
     const cacheKey = `content:${clientId || ''}:${status || ''}:${assigneeId || ''}:${type || ''}:${myItemsOnly ? userId : ''}`;
-    const cached = await getCached<any[]>(cacheKey);
-    if (cached) {
-      return NextResponse.json(cached);
+    if (!shouldBypassCache) {
+      const cached = await getCached<any[]>(cacheKey);
+      if (cached) {
+        return NextResponse.json(cached);
+      }
     }
 
     const where: any = {};
