@@ -22,6 +22,7 @@ import {
   DndContext,
   pointerWithin,
   rectIntersection,
+  closestCenter,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -30,6 +31,7 @@ import {
   DragStartEvent,
   DragOverlay,
   MeasuringStrategy,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import {
   Calendar as CalendarIcon,
@@ -39,7 +41,6 @@ import {
 } from 'lucide-react';
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { toLocalDateKey } from '@/lib/date-utils';
-import { DroppablePoolArea } from '@/components/planning/droppable-pool-area';
 import { CalendarGrid } from '@/components/planning/calendar-grid';
 import { CalendarWeekView } from '@/components/planning/calendar-week-view';
 import { CalendarThreeDayView } from '@/components/planning/calendar-three-day-view';
@@ -68,6 +69,8 @@ export default function PlanningPage() {
   const canCreateCalendar = hasActionPermission(effectivePermissions, 'calendar', 'create') || isSuperAdmin;
   const canEditCalendar = hasActionPermission(effectivePermissions, 'calendar', 'edit') || isSuperAdmin;
   const canDeleteCalendar = hasActionPermission(effectivePermissions, 'calendar', 'delete') || isSuperAdmin;
+  const canEditTasks = hasActionPermission(effectivePermissions, 'tasks', 'edit') || isSuperAdmin;
+  const canEditTracker = hasActionPermission(effectivePermissions, 'tracker', 'edit') || isSuperAdmin;
 
   const [activeTab, setActiveTab] = useState<'calendar' | 'wizard'>('calendar');
 
@@ -290,61 +293,34 @@ export default function PlanningPage() {
     fetchActionTasks();
   }, [selectedClientFilter, myItemsOnly, refreshTrigger]);
 
-  const customCollisionDetection = (args: any) => {
-    // 1. In browser environments, check element physically under pointer coordinates
-    // Immune to scroll desynchronization across auto-scrolling columns
-    if (typeof document !== 'undefined' && args.pointerCoordinates) {
-      const { x, y } = args.pointerCoordinates;
-      const elem = document.elementFromPoint(x, y);
-      if (elem) {
-        // Direct pool target
-        const poolEl = elem.closest('#pool, [data-droppable-id="pool"]');
-        if (poolEl) {
-          const poolContainer = args.droppableContainers.find((c: any) => c.id === 'pool');
-          if (poolContainer) return [{ id: 'pool', data: poolContainer.data }];
-        }
+  const customCollisionDetection: CollisionDetection = (args) => {
+    // 1. Filter only currently visible droppable containers (width > 0 && height > 0)
+    // Ensures desktop containers are not confused with hidden mobile containers or vice versa
+    const visibleContainers = args.droppableContainers.filter((c) => {
+      const rect = args.droppableRects.get(c.id);
+      return Boolean(rect && rect.width > 0 && rect.height > 0);
+    });
 
-        // Direct date target (column or cell)
-        const dayEl = elem.closest('[data-droppable-id], [data-date]');
-        if (dayEl) {
-          const droppableId = dayEl.getAttribute('data-droppable-id');
-          const dateKey = dayEl.getAttribute('data-date');
+    const activeArgs = {
+      ...args,
+      droppableContainers: visibleContainers,
+    };
 
-          if (droppableId) {
-            const container = args.droppableContainers.find((c: any) => c.id === droppableId);
-            if (container) return [{ id: container.id, data: container.data }];
-          }
-          if (dateKey) {
-            const container = args.droppableContainers.find(
-              (c: any) => c.data?.current?.date === dateKey || String(c.id).endsWith(dateKey)
-            );
-            if (container) return [{ id: container.id, data: container.data }];
-          }
-        }
-      }
-
-      // If between borders, check live bounding rectangles of droppable containers
-      for (const container of args.droppableContainers) {
-        const node = container.node?.current;
-        if (!node) continue;
-        const rect = node.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) continue; // ignore hidden elements (e.g. mobile vs desktop)
-        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-          return [{ id: container.id, data: container.data }];
-        }
-      }
-    }
-
-    // Fallback for headless tests or outside bounds
-    const pointerCollisions = pointerWithin(args);
+    // 2. Direct pointer collision (most precise when cursor is directly over a day column or cell)
+    const pointerCollisions = pointerWithin(activeArgs);
     if (pointerCollisions.length > 0) {
       return pointerCollisions;
     }
-    const rectCollisions = rectIntersection(args);
+
+    // 3. Rect intersection (if dragging card overlaps a cell even if pointer is on border)
+    const rectCollisions = rectIntersection(activeArgs);
     if (rectCollisions.length > 0) {
       return rectCollisions;
     }
-    return [];
+
+    // 4. Closest center fallback: ALWAYS guarantees resolving the nearest day cell
+    // (immune to grid gaps, 1px borders, header areas, or high-speed mouse releases)
+    return closestCenter(activeArgs);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -392,8 +368,8 @@ export default function PlanningPage() {
     }
   };
 
-  const handleRescheduleContent = async (itemId: string, newDateKey: string | null) => {
-    if (!canEditCalendar) {
+  const handleRescheduleContent = async (itemId: string, newDateKey: string) => {
+    if (!canEditCalendar && !canEditTracker) {
       setToastError('You do not have permission to edit or reschedule calendar deliverables.');
       return;
     }
@@ -411,11 +387,10 @@ export default function PlanningPage() {
     const previousScheduledDate = activeItem.scheduledDate;
     const previousStatus = activeItem.status;
 
-    const nextStatus = newDateKey === null
-      ? 'PLANNED'
-      : activeItem.status === 'PLANNED'
-      ? 'SCHEDULED'
-      : (activeItem.status || 'SCHEDULED');
+    const nextStatus =
+      activeItem.status === 'PLANNED'
+        ? 'SCHEDULED'
+        : (activeItem.status || 'SCHEDULED');
 
     // Register active recent update to prevent background refetches from overwriting with stale data
     recentContentUpdatesRef.current.set(itemId, {
@@ -425,13 +400,20 @@ export default function PlanningPage() {
     });
 
     // Single-record isolated optimistic update
-    setContentItems((prev) =>
-      prev.map((item) =>
+    setContentItems((prev) => {
+      const next = prev.map((item) =>
         item.id === itemId
           ? { ...item, scheduledDate: newDateKey, status: nextStatus }
           : item
-      )
-    );
+      );
+      setCachedContent(next);
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('trexo_cache_content', JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
 
     try {
       const res = await fetch('/api/content', {
@@ -443,6 +425,7 @@ export default function PlanningPage() {
         body: JSON.stringify({
           id: itemId,
           scheduledDate: newDateKey,
+          status: nextStatus,
         }),
       });
 
@@ -450,13 +433,20 @@ export default function PlanningPage() {
         const errData = await res.json().catch(() => ({}));
         recentContentUpdatesRef.current.delete(itemId);
         // Roll back ONLY the affected item without affecting neighbors
-        setContentItems((prev) =>
-          prev.map((item) =>
+        setContentItems((prev) => {
+          const reverted = prev.map((item) =>
             item.id === itemId
               ? { ...item, scheduledDate: previousScheduledDate, status: previousStatus }
               : item
-          )
-        );
+          );
+          setCachedContent(reverted);
+          if (typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('trexo_cache_content', JSON.stringify(reverted));
+            } catch {}
+          }
+          return reverted;
+        });
         setToastError(errData.error || `Failed to reschedule item (${res.status})`);
         return;
       }
@@ -485,19 +475,26 @@ export default function PlanningPage() {
       console.error('Reschedule API error:', err);
       recentContentUpdatesRef.current.delete(itemId);
       // Roll back ONLY the affected item
-      setContentItems((prev) =>
-        prev.map((item) =>
+      setContentItems((prev) => {
+        const reverted = prev.map((item) =>
           item.id === itemId
             ? { ...item, scheduledDate: previousScheduledDate, status: previousStatus }
             : item
-        )
-      );
+        );
+        setCachedContent(reverted);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('trexo_cache_content', JSON.stringify(reverted));
+          } catch {}
+        }
+        return reverted;
+      });
       setToastError(err?.message || 'Failed to reschedule item');
     }
   };
 
   const handleRescheduleTask = async (taskId: string, newDateKey: string) => {
-    if (!canEditCalendar) {
+    if (!canEditCalendar && !canEditTasks) {
       setToastError('You do not have permission to reschedule calendar tasks.');
       return;
     }
@@ -521,13 +518,20 @@ export default function PlanningPage() {
     });
 
     // Single-record isolated optimistic update
-    setActionTasks((prev) =>
-      prev.map((t) =>
+    setActionTasks((prev) => {
+      const next = prev.map((t) =>
         t.id === taskId
           ? { ...t, dueDate: newDateKey }
           : t
-      )
-    );
+      );
+      setCachedTasks(next);
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
 
     try {
       const res = await fetch('/api/tasks', {
@@ -546,13 +550,20 @@ export default function PlanningPage() {
         const errData = await res.json().catch(() => ({}));
         recentTaskUpdatesRef.current.delete(taskId);
         // Roll back ONLY the affected task without affecting neighbors
-        setActionTasks((prev) =>
-          prev.map((t) =>
+        setActionTasks((prev) => {
+          const reverted = prev.map((t) =>
             t.id === taskId
               ? { ...t, dueDate: previousDueDate }
               : t
-          )
-        );
+          );
+          setCachedTasks(reverted);
+          if (typeof window !== 'undefined') {
+            try {
+              sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(reverted));
+            } catch {}
+          }
+          return reverted;
+        });
         setToastError(errData.error || `Failed to reschedule task (${res.status})`);
         return;
       }
@@ -581,13 +592,20 @@ export default function PlanningPage() {
       console.error('Task reschedule API error:', err);
       recentTaskUpdatesRef.current.delete(taskId);
       // Roll back ONLY the affected task
-      setActionTasks((prev) =>
-        prev.map((t) =>
+      setActionTasks((prev) => {
+        const reverted = prev.map((t) =>
           t.id === taskId
             ? { ...t, dueDate: previousDueDate }
             : t
-        )
-      );
+        );
+        setCachedTasks(reverted);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('trexo_cache_tasks', JSON.stringify(reverted));
+          } catch {}
+        }
+        return reverted;
+      });
       setToastError(err?.message || 'Failed to reschedule task');
     }
   };
@@ -605,15 +623,7 @@ export default function PlanningPage() {
     if (targetData?.type === 'day' && targetData.date) {
       return toLocalDateKey(targetData.date);
     }
-    // Dropped directly on another task card
-    if (targetData?.type === 'task' && targetData.task?.dueDate) {
-      return toLocalDateKey(targetData.task.dueDate);
-    }
-    // Dropped directly on another content deliverable card
-    if ((targetData?.type === 'card' || targetData?.type === 'content') && targetData.item?.scheduledDate) {
-      return toLocalDateKey(targetData.item.scheduledDate);
-    }
-    // Match YYYY-MM-DD pattern in targetId (e.g., 'week-day-2026-10-25', 'mobile-day-2026-10-25', '2026-10-25')
+    // Match YYYY-MM-DD pattern in targetId (e.g., 'week-day-2026-10-25', 'mobile-day-2026-10-25', 'desktop-day-2026-10-25', '2026-10-25')
     const match = targetId.match(/\b\d{4}-\d{2}-\d{2}\b/);
     if (match) {
       return match[0];
@@ -629,23 +639,8 @@ export default function PlanningPage() {
       return;
     }
 
-    if (!canEditCalendar) {
-      setToastError('You do not have permission to edit or reschedule calendar deliverables.');
-      return;
-    }
-
-    const targetId = String(over.id);
-    const targetData = over.data?.current;
     const activeData = active.data?.current;
     const activeIdStr = String(active.id);
-
-    const isPoolTarget =
-      targetId === 'pool' ||
-      targetId === 'unscheduled-pool' ||
-      targetData?.type === 'pool' ||
-      ((targetData?.type === 'card' || targetData?.type === 'content') && !targetData?.item?.scheduledDate);
-
-    const targetDateKey = extractTargetDateKey(over);
 
     // Identify strictly whether the dragged item is a Task or a Content Deliverable
     const isTask =
@@ -654,6 +649,21 @@ export default function PlanningPage() {
       activeData?.task !== undefined ||
       /^(?:(?:desktop|mobile|agenda|week|threeday)-)?task-/.test(activeIdStr);
 
+    if (isTask) {
+      if (!canEditCalendar && !canEditTasks) {
+        setToastError('You do not have permission to reschedule calendar tasks.');
+        return;
+      }
+    } else {
+      if (!canEditCalendar && !canEditTracker) {
+        setToastError('You do not have permission to edit or reschedule calendar deliverables.');
+        return;
+      }
+    }
+
+    const targetDateKey = extractTargetDateKey(over);
+    if (!targetDateKey) return;
+
     // Case A: Action Tasks
     if (isTask) {
       const rawTaskId =
@@ -661,12 +671,6 @@ export default function PlanningPage() {
         activeData?.id ||
         activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-task-/, '').replace(/^task-/, '');
 
-      if (isPoolTarget) {
-        setToastError('Tasks require a due date and cannot be unscheduled to the unassigned pool.');
-        return;
-      }
-
-      if (!targetDateKey) return;
       await handleRescheduleTask(rawTaskId, targetDateKey);
       return;
     }
@@ -677,12 +681,6 @@ export default function PlanningPage() {
       activeData?.id ||
       activeIdStr.replace(/^(?:desktop|mobile|agenda|week|threeday)-content-/, '').replace(/^content-/, '');
 
-    if (isPoolTarget) {
-      await handleRescheduleContent(rawContentId, null);
-      return;
-    }
-
-    if (!targetDateKey) return;
     await handleRescheduleContent(rawContentId, targetDateKey);
   };
 
@@ -787,8 +785,6 @@ export default function PlanningPage() {
     (item) => item.isPersonal || !item.clientId || !hiddenClients.includes(item.clientId)
   );
 
-  const unscheduledItems = filteredContent.filter((item) => !item.scheduledDate);
-
   if (!canViewCalendar) {
     return (
       <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-4 max-w-md mx-auto my-16 shadow-lg animate-in fade-in">
@@ -879,12 +875,6 @@ export default function PlanningPage() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <DroppablePoolArea
-              items={unscheduledItems}
-              onItemClick={(item) => setSelectedItem(item)}
-              isDragInProgress={Boolean(activeDragItem)}
-            />
-
             {/* View 1: Month View (Google Calendar Inspired Compact Mobile Grid + Agenda) */}
             {calendarViewMode === 'month' && (
               <CalendarGrid
@@ -931,7 +921,7 @@ export default function PlanningPage() {
             )}
 
             {/* Draggable Overlay Card for Smooth Drag Feedback */}
-            <DragOverlay dropAnimation={null}>
+            <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
               {activeDragItem ? (
                 activeDragItem.__isTask ? (
                   <div

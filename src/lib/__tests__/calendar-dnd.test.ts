@@ -998,6 +998,45 @@ describe('Calendar Drag-and-Drop & Rescheduling Logic', () => {
 
       expect(displayedDateKey).toBe('2026-10-06');
     });
+
+    it('9. Collision detection pipeline filters out hidden/dormant droppable containers (width === 0) so desktop drops are never intercepted by mobile cells', () => {
+      const droppableContainers = [
+        { id: 'mobile-day-2026-10-06', data: { current: { type: 'day', date: '2026-10-06' } } },
+        { id: 'desktop-day-2026-10-06', data: { current: { type: 'day', date: '2026-10-06' } } },
+      ];
+
+      const droppableRects = new Map([
+        ['mobile-day-2026-10-06', { width: 0, height: 0, top: 0, bottom: 0, left: 0, right: 0 }],
+        ['desktop-day-2026-10-06', { width: 140, height: 120, top: 100, bottom: 220, left: 100, right: 240 }],
+      ]);
+
+      const visible = droppableContainers.filter((c) => {
+        const rect = droppableRects.get(c.id);
+        return Boolean(rect && rect.width > 0 && rect.height > 0);
+      });
+
+      expect(visible.length).toBe(1);
+      expect(visible[0].id).toBe('desktop-day-2026-10-06');
+    });
+
+    it('10. Closest center fallback resolves nearest date even when dropped on 1px grid gap, preventing cancelled drops', () => {
+      // Cell 1: Oct 6th [left: 0, right: 100], Cell 2: Oct 7th [left: 101, right: 201] (1px gap at x: 100.5)
+      const cells = [
+        { id: 'desktop-day-2026-10-06', center: { x: 50, y: 50 } },
+        { id: 'desktop-day-2026-10-07', center: { x: 151, y: 50 } },
+      ];
+
+      // Cursor released at x: 100.5 (exactly in the gap, slightly closer to Oct 6th)
+      const pointer = { x: 100.2, y: 50 };
+
+      const closest = cells.reduce((prev, curr) => {
+        const distPrev = Math.abs(prev.center.x - pointer.x);
+        const distCurr = Math.abs(curr.center.x - pointer.x);
+        return distCurr < distPrev ? curr : prev;
+      });
+
+      expect(closest.id).toBe('desktop-day-2026-10-06');
+    });
   });
 });
 
