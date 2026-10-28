@@ -167,29 +167,11 @@ export default function LoginPage() {
 
                 <button
                   type="button"
-                  onClick={() => setDemoAccount('sneha@trexobyte.com')}
+                  onClick={() => setDemoAccount('thaparoshan2080@gmail.com')}
                   className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
                 >
-                  <span className="block font-bold text-zinc-200">Sneha Adhikari</span>
-                  <span className="text-[10px] text-zinc-500">Social Media Mgr</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDemoAccount('aashish@trexobyte.com')}
-                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-                >
-                  <span className="block font-bold text-zinc-200">Aashish Sharma</span>
-                  <span className="text-[10px] text-zinc-500">Shoot Manager</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDemoAccount('bikash@trexobyte.com')}
-                  className="rounded border border-zinc-800 bg-zinc-900/60 p-2 text-left hover:border-[#FF3B00] transition-colors"
-                >
-                  <span className="block font-bold text-zinc-200">Bikash Gurung</span>
-                  <span className="text-[10px] text-zinc-500">Billing / Finance</span>
+                  <span className="block font-bold text-zinc-200">Roshan Thapa</span>
+                  <span className="text-[10px] text-zinc-500">Super Admin</span>
                 </button>
               </div>
             </div>
