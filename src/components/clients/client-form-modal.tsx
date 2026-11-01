@@ -153,6 +153,10 @@ export function ClientFormModal({
                 >
                   <option value="Social & Growth">Social & Growth</option>
                   <option value="Full Stack Growth">Full Stack Growth</option>
+                  <option value="Full website development">Full website development</option>
+                  <option value="Website redesign">Website redesign</option>
+                  <option value="SEO">SEO</option>
+                  <option value="Branding">Branding</option>
                   <option value="Production & Films">Production & Films</option>
                   <option value="Ads & Performance">Ads & Performance</option>
                   <option value="Content Production">Content Production</option>

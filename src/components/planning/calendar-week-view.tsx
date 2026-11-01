@@ -6,6 +6,7 @@ import { format, isToday, startOfWeek, endOfWeek, eachDayOfInterval } from 'date
 import { useDroppable } from '@dnd-kit/core';
 import { Plus, Clock } from 'lucide-react';
 import { toLocalDateKey } from '@/lib/date-utils';
+import { getNepaliDate } from '@/lib/nepali-date';
 import { CalendarItemCard } from './calendar-item-card';
 import { CalendarTaskCard } from './calendar-task-card';
 import { useHorizontalAutoScroll } from '@/hooks/use-horizontal-auto-scroll';
@@ -29,6 +30,8 @@ export function DroppableWeekDayColumn({
     id: `week-day-${dateKey}`,
     data: { type: 'day', date: dateKey },
   });
+
+  const bsDate = getNepaliDate(day);
 
   return (
     <div
@@ -56,11 +59,21 @@ export function DroppableWeekDayColumn({
             {format(day, 'd')}
           </span>
           <div className="min-w-0">
-            <span className="block text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-muted-foreground leading-tight truncate">
-              {format(day, 'EEE')}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="block text-[9px] sm:text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-muted-foreground leading-tight truncate">
+                {format(day, 'EEE')}
+              </span>
+              {bsDate && (
+                <span
+                  className="text-[8px] sm:text-[9.5px] font-mono font-bold text-[#FF3B00] leading-none shrink-0"
+                  title={`Nepali BS: ${bsDate.formattedBS}`}
+                >
+                  {bsDate.day} BS
+                </span>
+              )}
+            </div>
             <span className="hidden sm:block text-[8px] md:text-[9px] font-mono text-muted-foreground/80 leading-none truncate">
-              {format(day, 'MMM d')}
+              {format(day, 'MMM d')} {bsDate ? `• ${bsDate.monthName}` : ''}
             </span>
           </div>
         </div>

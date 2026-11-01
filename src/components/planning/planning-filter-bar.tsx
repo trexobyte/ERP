@@ -30,6 +30,7 @@ interface PlanningFilterBarProps {
   calendarViewMode?: 'month' | 'week' | '3day';
   onChangeViewMode?: (mode: 'month' | 'week' | '3day') => void;
   currentDateLabel?: string;
+  currentBsLabel?: string;
   onPrevDate?: () => void;
   onNextDate?: () => void;
   onToday?: () => void;
@@ -49,6 +50,7 @@ export function PlanningFilterBar({
   calendarViewMode = 'month',
   onChangeViewMode,
   currentDateLabel,
+  currentBsLabel,
   onPrevDate,
   onNextDate,
   onToday,
@@ -118,9 +120,16 @@ export function PlanningFilterBar({
             </button>
           </div>
 
-          <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase truncate">
-            {displayDateLabel}
-          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground uppercase truncate">
+              {displayDateLabel}
+            </h2>
+            {currentBsLabel && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#FF3B00]/10 text-[#FF3B00] border border-[#FF3B00]/25 font-mono shadow-2xs">
+                🇳🇵 {currentBsLabel}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Right: View Switcher (Month, Week, 3 Days) & Quick Actions */}

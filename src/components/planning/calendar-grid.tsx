@@ -6,6 +6,7 @@ import { format, isSameMonth, isToday } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
 import { CheckSquare, Plus, Calendar as CalendarIcon, User, ArrowRight, Check } from 'lucide-react';
 import { toLocalDateKey, parseLocalDateKey, formatLocalDate } from '@/lib/date-utils';
+import { getNepaliDate } from '@/lib/nepali-date';
 import { CalendarItemCard } from './calendar-item-card';
 import { CalendarTaskCard } from './calendar-task-card';
 
@@ -35,6 +36,8 @@ export function DroppableDayCell({
     data: { type: 'day', date: dateKey },
   });
 
+  const bsDate = getNepaliDate(day);
+
   return (
     <div
       ref={setNodeRef}
@@ -52,17 +55,35 @@ export function DroppableDayCell({
       }`}
     >
       <div className="flex justify-between items-center mb-1">
-        <span
-          className={`text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center ${
-            isCurrentDay
-              ? 'bg-[#FF3B00] text-white shadow-xs'
-              : isCurrentMonth
-              ? 'text-foreground/80 font-mono'
-              : 'text-muted-foreground/40 font-mono'
-          }`}
-        >
-          {format(day, 'd')}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={`text-xs font-bold h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${
+              isCurrentDay
+                ? 'bg-[#FF3B00] text-white shadow-xs'
+                : isCurrentMonth
+                ? 'text-foreground/80 font-mono'
+                : 'text-muted-foreground/40 font-mono'
+            }`}
+          >
+            {format(day, 'd')}
+          </span>
+          {bsDate && (
+            <span
+              className={`text-[10px] font-mono leading-none ${
+                isCurrentDay
+                  ? 'text-[#FF3B00] font-extrabold'
+                  : isCurrentMonth
+                  ? bsDate.day === 1
+                    ? 'text-[#FF3B00] font-bold'
+                    : 'text-muted-foreground font-semibold'
+                  : 'text-muted-foreground/40 font-normal'
+              }`}
+              title={`Nepali BS: ${bsDate.formattedBS}`}
+            >
+              {bsDate.day === 1 ? `${bsDate.monthName.slice(0, 3)} 1` : bsDate.day}
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={(e) => {
@@ -109,6 +130,8 @@ function MobileDroppableDayCell({
     data: { type: 'day', date: dateKey },
   });
 
+  const bsDate = getNepaliDate(day);
+
   return (
     <button
       ref={setNodeRef}
@@ -128,20 +151,36 @@ function MobileDroppableDayCell({
           : 'border-transparent bg-muted/20 opacity-40'
       }`}
     >
-      {/* Day Number */}
-      <span
-        className={`text-[11px] sm:text-xs font-bold h-5 w-5 sm:h-5.5 sm:w-5.5 rounded-full flex items-center justify-center ${
-          isCurrentDay
-            ? 'bg-[#FF3B00] text-white shadow-xs'
-            : isSelected
-            ? 'font-black text-[#FF3B00]'
-            : isCurrentMonth
-            ? 'text-foreground'
-            : 'text-muted-foreground'
-        }`}
-      >
-        {format(day, 'd')}
-      </span>
+      {/* Day Number (AD + BS) */}
+      <div className="flex items-center gap-1">
+        <span
+          className={`text-[11px] sm:text-xs font-bold h-5 w-5 sm:h-5.5 sm:w-5.5 rounded-full flex items-center justify-center ${
+            isCurrentDay
+              ? 'bg-[#FF3B00] text-white shadow-xs'
+              : isSelected
+              ? 'font-black text-[#FF3B00]'
+              : isCurrentMonth
+              ? 'text-foreground'
+              : 'text-muted-foreground'
+          }`}
+        >
+          {format(day, 'd')}
+        </span>
+        {bsDate && (
+          <span
+            className={`text-[8.5px] font-mono leading-none ${
+              isCurrentDay || isSelected
+                ? 'text-[#FF3B00] font-bold'
+                : isCurrentMonth
+                ? 'text-muted-foreground font-semibold'
+                : 'text-muted-foreground/40'
+            }`}
+            title={`BS: ${bsDate.formattedBS}`}
+          >
+            {bsDate.day}
+          </span>
+        )}
+      </div>
 
       {/* Item Previews (Recognizable short title + +N more indicator) */}
       <div className="w-full flex flex-col gap-0.5 min-h-[18px] justify-end overflow-hidden">
@@ -206,6 +245,7 @@ export function CalendarGrid({
 
   // Parse currently selected date for header formatting
   const selectedDateObj = parseLocalDateKey(selectedDateKey);
+  const selectedBsDate = getNepaliDate(selectedDateObj);
 
   // Items for the currently selected date
   const selectedDayItems = filteredContent
@@ -322,6 +362,11 @@ export function CalendarGrid({
                 <h3 className="text-xs sm:text-sm font-extrabold text-foreground">
                   {format(selectedDateObj, 'EEEE, MMMM d, yyyy')}
                 </h3>
+                {selectedBsDate && (
+                  <p className="text-[11px] font-bold text-[#FF3B00] font-mono leading-tight">
+                    {selectedBsDate.formattedBS} ({selectedBsDate.formattedNp})
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground font-mono">
                   {selectedDayItems.length} deliverable
                   {selectedDayItems.length === 1 ? '' : 's'}

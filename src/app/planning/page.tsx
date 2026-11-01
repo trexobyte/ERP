@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { hasPermission, hasActionPermission } from '@/lib/permissions';
 import { toLocalDateKey } from '@/lib/date-utils';
+import { getNepaliMonthSpan } from '@/lib/nepali-date';
 import { CalendarGrid } from '@/components/planning/calendar-grid';
 import { CalendarWeekView } from '@/components/planning/calendar-week-view';
 import { CalendarThreeDayView } from '@/components/planning/calendar-three-day-view';
@@ -757,17 +758,20 @@ export default function PlanningPage() {
 
   // Formatted date label for current view
   let displayDateLabel = format(currentDate, 'MMMM yyyy');
+  let displayBsLabel = getNepaliMonthSpan(monthStart, monthEnd);
   if (calendarViewMode === 'week') {
     const wStart = startOfWeek(currentDate, { weekStartsOn: 0 });
     const wEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
     displayDateLabel = isSameMonth(wStart, wEnd)
       ? `${format(wStart, 'MMM d')} – ${format(wEnd, 'd, yyyy')}`
       : `${format(wStart, 'MMM d')} – ${format(wEnd, 'MMM d, yyyy')}`;
+    displayBsLabel = getNepaliMonthSpan(wStart, wEnd);
   } else if (calendarViewMode === '3day') {
     const d3End = addDays(currentDate, 2);
     displayDateLabel = isSameMonth(currentDate, d3End)
       ? `${format(currentDate, 'MMM d')} – ${format(d3End, 'd, yyyy')}`
       : `${format(currentDate, 'MMM d')} – ${format(d3End, 'MMM d, yyyy')}`;
+    displayBsLabel = getNepaliMonthSpan(currentDate, d3End);
   }
 
   const toggleHideClient = (cId: string) => {
@@ -850,6 +854,7 @@ export default function PlanningPage() {
             calendarViewMode={calendarViewMode}
             onChangeViewMode={setCalendarViewMode}
             currentDateLabel={displayDateLabel}
+            currentBsLabel={displayBsLabel}
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
             onToday={handleToday}

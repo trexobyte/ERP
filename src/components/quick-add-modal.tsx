@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useImpersonation } from '@/components/providers';
 import { X, Calendar, CheckSquare, Camera, Sparkles, Building2, Lock } from 'lucide-react';
 import { getTodayLocalDateKey, toLocalDateKey } from '@/lib/date-utils';
+import { getNepaliDate } from '@/lib/nepali-date';
 
 export function QuickAddModal() {
   const {
@@ -353,6 +354,11 @@ export function QuickAddModal() {
                 required
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-purple-500 outline-hidden"
               />
+              {scheduledDate && getNepaliDate(scheduledDate) && (
+                <p className="mt-1 text-[11px] font-mono text-purple-400 font-semibold">
+                  🇳🇵 BS: {getNepaliDate(scheduledDate)?.formattedBS} ({getNepaliDate(scheduledDate)?.formattedNp})
+                </p>
+              )}
             </div>
 
             <div>
@@ -518,6 +524,11 @@ export function QuickAddModal() {
                       onChange={(e) => setScheduledDate(e.target.value)}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden font-medium"
                     />
+                    {scheduledDate && getNepaliDate(scheduledDate) && (
+                      <p className="mt-1 text-[11px] font-mono text-[#FF3B00] font-semibold">
+                        🇳🇵 BS: {getNepaliDate(scheduledDate)?.formattedBS} ({getNepaliDate(scheduledDate)?.formattedNp})
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -618,6 +629,11 @@ export function QuickAddModal() {
                       required
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-[#FF3B00] outline-hidden"
                     />
+                    {taskDueDate && getNepaliDate(taskDueDate) && (
+                      <p className="mt-1 text-[11px] font-mono text-[#FF3B00] font-semibold">
+                        🇳🇵 BS: {getNepaliDate(taskDueDate)?.formattedBS} ({getNepaliDate(taskDueDate)?.formattedNp})
+                      </p>
+                    )}
                   </div>
                 </div>
 

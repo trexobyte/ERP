@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Trash2, X, Calendar, Download, ExternalLink } from 'lucide-react';
 import { toLocalDateKey } from '@/lib/date-utils';
+import { getNepaliDate } from '@/lib/nepali-date';
 import { generateIcsCalendar, getGoogleCalendarUrl, downloadIcsFile, ShootCalendarEvent } from '@/lib/ics-generator';
 
 interface ContentDetailModalProps {
@@ -221,6 +222,11 @@ export function ContentDetailModal({
                     onChange={(e) => setScheduledDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-md border border-input bg-background font-medium focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                   />
+                  {scheduledDate && getNepaliDate(scheduledDate) && (
+                    <p className="mt-1 text-[11px] font-mono text-purple-400 font-semibold">
+                      🇳🇵 BS: {getNepaliDate(scheduledDate)?.formattedBS} ({getNepaliDate(scheduledDate)?.formattedNp})
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -320,6 +326,11 @@ export function ContentDetailModal({
                       onChange={(e) => setScheduledDate(e.target.value)}
                       className="w-full px-3 py-2 rounded-md border border-input bg-background font-medium focus:outline-hidden focus:ring-2 focus:ring-[#FF3B00]"
                     />
+                    {scheduledDate && getNepaliDate(scheduledDate) && (
+                      <p className="mt-1 text-[11px] font-mono text-[#FF3B00] font-semibold">
+                        🇳🇵 Bikram Sambat (BS): {getNepaliDate(scheduledDate)?.formattedBS} ({getNepaliDate(scheduledDate)?.formattedNp})
+                      </p>
+                    )}
                   </div>
                 </div>
 
