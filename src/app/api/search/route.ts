@@ -18,6 +18,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ clients: [], content: [], tasks: [], invoices: [] });
     }
 
+    const userId = (session.user as any)?.id;
+
     const [clients, content, tasks, invoices] = await Promise.all([
       prisma.client.findMany({
         where: {
@@ -33,11 +35,21 @@ export async function GET(req: Request) {
       }),
       prisma.contentItem.findMany({
         where: {
-          OR: [
-            { title: { contains: q, mode: 'insensitive' as any } },
-            { description: { contains: q, mode: 'insensitive' as any } },
-            { type: { contains: q, mode: 'insensitive' as any } },
-            { platform: { contains: q, mode: 'insensitive' as any } },
+          AND: [
+            {
+              OR: [
+                { isPersonal: false },
+                ...(userId ? [{ isPersonal: true, assigneeId: userId }] : []),
+              ],
+            },
+            {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' as any } },
+                { description: { contains: q, mode: 'insensitive' as any } },
+                { type: { contains: q, mode: 'insensitive' as any } },
+                { platform: { contains: q, mode: 'insensitive' as any } },
+              ],
+            },
           ],
         },
         take: 5,

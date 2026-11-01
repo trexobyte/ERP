@@ -36,8 +36,8 @@ export async function GET(req: Request) {
       return NextResponse.json(cached);
     }
 
-    // Filters for content items
-    const contentWhere: any = {};
+    // Filters for content items (strictly agency deliverables, exclude private personal items)
+    const contentWhere: any = { isPersonal: false };
     if (clientId) contentWhere.clientId = clientId;
     if (assigneeId) contentWhere.assigneeId = assigneeId;
     if (contentType) contentWhere.type = contentType;

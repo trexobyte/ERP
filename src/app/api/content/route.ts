@@ -37,7 +37,8 @@ export async function GET(req: Request) {
     const cacheControl = req.headers.get('cache-control') || '';
     const shouldBypassCache = cacheControl.includes('no-cache') || cacheControl.includes('no-store') || searchParams.has('_t');
 
-    const cacheKey = `content:${clientId || ''}:${status || ''}:${assigneeId || ''}:${type || ''}:${myItemsOnly ? userId : ''}`;
+    // CRITICAL: Cache key MUST be scoped to caller.id because personal items are strictly private to each user
+    const cacheKey = `content:${userId}:${clientId || ''}:${status || ''}:${assigneeId || ''}:${type || ''}:${myItemsOnly ? '1' : '0'}`;
     if (!shouldBypassCache) {
       const cached = await getCached<any[]>(cacheKey);
       if (cached) {
@@ -148,8 +149,8 @@ export async function POST(req: Request) {
     const { clientId, isPersonal, type, title, description, platform, scheduledDate, status, assigneeId, clientFeedbackNotes, approvalOutcome, attachments } = body;
 
     const finalIsPersonal = Boolean(isPersonal);
-    const finalAssigneeId = finalIsPersonal ? (assigneeId || userId || null) : (assigneeId || null);
-    const finalClientId = finalIsPersonal ? (clientId || null) : (clientId || null);
+    const finalAssigneeId = finalIsPersonal ? userId : (assigneeId || null);
+    const finalClientId = finalIsPersonal ? null : (clientId || null);
 
     let finalScheduledDate: Date | null = null;
     let finalStatus = status || 'PLANNED';
@@ -217,7 +218,7 @@ export async function POST(req: Request) {
           entityType: 'ContentItem',
           entityId: item.id,
           details: finalIsPersonal
-            ? `Created personal calendar item: "${item.title}"`
+            ? 'Created private personal calendar item'
             : `Created ${item.type}: "${item.title}" for ${item.client?.name || 'Client'}`,
         },
       });
@@ -256,9 +257,14 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Content item not found' }, { status: 404 });
     }
 
+    // Security check: if existing item is personal, ONLY the owner can edit it
+    if (existing.isPersonal && existing.assigneeId && existing.assigneeId !== userId) {
+      return forbiddenResponse('You do not have permission to view or edit another user\'s personal calendar item.');
+    }
+
     const updateData: any = {};
     if (clientId !== undefined) updateData.clientId = clientId || null;
-    if (isPersonal !== undefined) updateData.isPersonal = isPersonal;
+    if (isPersonal !== undefined) updateData.isPersonal = Boolean(isPersonal);
     if (type !== undefined) updateData.type = type;
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -267,6 +273,15 @@ export async function PUT(req: Request) {
     if (clientFeedbackNotes !== undefined) updateData.clientFeedbackNotes = clientFeedbackNotes;
     if (approvalOutcome !== undefined) updateData.approvalOutcome = approvalOutcome;
     if (attachments !== undefined) updateData.attachments = typeof attachments === 'string' ? attachments : JSON.stringify(attachments);
+
+    // If item is personal or changed to personal, lock to current user as owner and clear client
+    if (updateData.isPersonal || (updateData.isPersonal === undefined && existing.isPersonal)) {
+      updateData.isPersonal = true;
+      updateData.clientId = null;
+      updateData.assigneeId = existing.assigneeId || userId;
+      if (!updateData.platform) updateData.platform = 'PERSONAL';
+      if (!updateData.type) updateData.type = 'PERSONAL';
+    }
 
     if (status !== undefined) {
       updateData.status = status;
@@ -335,7 +350,9 @@ export async function PUT(req: Request) {
           action: isApprovalChange ? 'APPROVAL' : isStatusChange ? 'STATUS_CHANGE' : 'UPDATE',
           entityType: 'ContentItem',
           entityId: updated.id,
-          details: isApprovalChange
+          details: (updated.isPersonal || existing.isPersonal)
+            ? 'Updated private personal calendar item'
+            : isApprovalChange
             ? `Logged approval outcome [${approvalOutcome}] for "${updated.title}"`
             : `Updated content item "${updated.title}" (${updated.status})`,
         },
@@ -365,6 +382,14 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+    const existing = await prisma.contentItem.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: 'Content item not found' }, { status: 404 });
+
+    // Security check: if existing item is personal, ONLY the owner can delete it
+    if (existing.isPersonal && existing.assigneeId && existing.assigneeId !== caller.id) {
+      return forbiddenResponse('You do not have permission to delete another user\'s personal calendar item.');
+    }
 
     await prisma.contentItem.delete({ where: { id } });
     await invalidateCache('content');

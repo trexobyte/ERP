@@ -180,13 +180,22 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
     : {};
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const currentAuthUserId = (session?.user as any)?.id;
 
-  // Safe session storage helpers for instant 0ms reload
+  // Safe session storage helpers for instant 0ms reload (user-scoped for private content)
   const getStored = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
     try {
-      const item = sessionStorage.getItem(`trexo_cache_${key}`);
-      return item ? JSON.parse(item) : defaultValue;
+      const storageKey = key === 'content' && currentAuthUserId
+        ? `trexo_cache_${currentAuthUserId}_content`
+        : `trexo_cache_${key}`;
+      const item = sessionStorage.getItem(storageKey);
+      if (!item) return defaultValue;
+      const parsed = JSON.parse(item);
+      if (key === 'content' && Array.isArray(parsed) && currentAuthUserId) {
+        return parsed.filter((i: any) => !i.isPersonal || i.assigneeId === currentAuthUserId || i.assignee?.id === currentAuthUserId);
+      }
+      return parsed;
     } catch {
       return defaultValue;
     }
@@ -195,7 +204,10 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
   const setStored = (key: string, value: any) => {
     if (typeof window === 'undefined') return;
     try {
-      sessionStorage.setItem(`trexo_cache_${key}`, JSON.stringify(value));
+      const storageKey = key === 'content' && currentAuthUserId
+        ? `trexo_cache_${currentAuthUserId}_content`
+        : `trexo_cache_${key}`;
+      sessionStorage.setItem(storageKey, JSON.stringify(value));
     } catch {}
   };
 
@@ -203,6 +215,15 @@ function AppStateBridge({ children }: { children: React.ReactNode }) {
   const [cachedUsers, setCachedUsersState] = useState<any[]>(() => getStored('users', []));
   const [cachedTasks, setCachedTasksState] = useState<any[]>(() => getStored('tasks', []));
   const [cachedContent, setCachedContentState] = useState<any[]>(() => getStored('content', []));
+
+  // Purge any stale personal items from in-memory content cache if session user changes
+  useEffect(() => {
+    if (currentAuthUserId) {
+      setCachedContentState((prev) =>
+        prev.filter((i) => !i.isPersonal || i.assigneeId === currentAuthUserId || i.assignee?.id === currentAuthUserId)
+      );
+    }
+  }, [currentAuthUserId]);
   const [cachedInvoices, setCachedInvoicesState] = useState<any[]>(() => getStored('invoices', []));
   const [cachedDashboard, setCachedDashboardState] = useState<any>(() => getStored('dashboard', null));
   const [cachedRoles, setCachedRolesState] = useState<any[]>(() => getStored('roles', []));

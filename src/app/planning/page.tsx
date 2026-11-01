@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useImpersonation } from '@/components/providers';
 import {
   startOfMonth,
@@ -51,6 +52,9 @@ import { PlanningWizard } from '@/components/planning/planning-wizard';
 
 export default function PlanningPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as any)?.id;
+
   const {
     effectiveRoleName,
     effectivePermissions,
@@ -82,7 +86,8 @@ export default function PlanningPage() {
     if (cachedContent && cachedContent.length > 0) return cachedContent;
     if (typeof window !== 'undefined') {
       try {
-        const stored = sessionStorage.getItem('trexo_cache_content');
+        const key = currentUserId ? `trexo_cache_${currentUserId}_content` : 'trexo_cache_content';
+        const stored = sessionStorage.getItem(key) || sessionStorage.getItem('trexo_cache_content');
         if (stored) return JSON.parse(stored);
       } catch {}
     }
@@ -109,6 +114,15 @@ export default function PlanningPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingEdit, setDeletingEdit] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
+
+  // Filter out any stale personal items belonging to other users when session user is available
+  useEffect(() => {
+    if (currentUserId) {
+      setContentItems((prev) =>
+        prev.filter((item) => !item.isPersonal || item.assigneeId === currentUserId || item.assignee?.id === currentUserId)
+      );
+    }
+  }, [currentUserId]);
 
   // Active drag item for DragOverlay
   const [activeDragItem, setActiveDragItem] = useState<any | null>(null);
@@ -226,7 +240,8 @@ export default function PlanningPage() {
                 setCachedContent(reconciled);
                 if (typeof window !== 'undefined') {
                   try {
-                    sessionStorage.setItem('trexo_cache_content', JSON.stringify(reconciled));
+                    const storageKey = currentUserId ? `trexo_cache_${currentUserId}_content` : 'trexo_cache_content';
+                    sessionStorage.setItem(storageKey, JSON.stringify(reconciled));
                   } catch {}
                 }
               }
@@ -660,6 +675,13 @@ export default function PlanningPage() {
         setToastError('You do not have permission to edit or reschedule calendar deliverables.');
         return;
       }
+      if (activeData?.item?.isPersonal || activeData?.isPersonal) {
+        const itemOwnerId = activeData?.item?.assigneeId || activeData?.item?.assignee?.id || activeData?.assigneeId;
+        if (itemOwnerId && currentUserId && itemOwnerId !== currentUserId) {
+          setToastError('You cannot reschedule another user\'s personal calendar item.');
+          return;
+        }
+      }
     }
 
     const targetDateKey = extractTargetDateKey(over);
@@ -785,9 +807,25 @@ export default function PlanningPage() {
   const selectAllClients = () => setHiddenClients([]);
   const unselectAllClients = () => setHiddenClients(clients.map((c) => c.id));
 
-  const filteredContent = contentItems.filter(
-    (item) => item.isPersonal || !item.clientId || !hiddenClients.includes(item.clientId)
-  );
+  const filteredContent = contentItems.filter((item) => {
+    // Privacy protection: personal items MUST only be visible to the user who owns them
+    if (item.isPersonal) {
+      const ownerId = item.assigneeId || item.assignee?.id;
+      return Boolean(currentUserId && ownerId && ownerId === currentUserId);
+    }
+    return !item.clientId || !hiddenClients.includes(item.clientId);
+  });
+
+  const handleItemClick = (item: any) => {
+    if (item.isPersonal) {
+      const ownerId = item.assigneeId || item.assignee?.id;
+      if (ownerId && currentUserId && ownerId !== currentUserId) {
+        setToastError('This is a private personal calendar item.');
+        return;
+      }
+    }
+    setSelectedItem(item);
+  };
 
   if (!canViewCalendar) {
     return (
@@ -890,7 +928,7 @@ export default function PlanningPage() {
                 selectedClientFilter={selectedClientFilter}
                 hiddenClients={hiddenClients}
                 activeDragItem={activeDragItem}
-                onItemClick={(item) => setSelectedItem(item)}
+                onItemClick={handleItemClick}
                 onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
                 onRescheduleContent={handleRescheduleContent}
                 onRescheduleTask={handleRescheduleTask}
@@ -906,7 +944,7 @@ export default function PlanningPage() {
                 selectedClientFilter={selectedClientFilter}
                 hiddenClients={hiddenClients}
                 activeDragItem={activeDragItem}
-                onItemClick={(item) => setSelectedItem(item)}
+                onItemClick={handleItemClick}
                 onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
               />
             )}
@@ -920,7 +958,7 @@ export default function PlanningPage() {
                 selectedClientFilter={selectedClientFilter}
                 hiddenClients={hiddenClients}
                 activeDragItem={activeDragItem}
-                onItemClick={(item) => setSelectedItem(item)}
+                onItemClick={handleItemClick}
                 onQuickAddOnDate={(dateKey) => openQuickAdd('content', dateKey)}
               />
             )}

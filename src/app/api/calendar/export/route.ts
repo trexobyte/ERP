@@ -35,7 +35,12 @@ export async function GET(req: NextRequest) {
 
     if (singleItemId) {
       where.id = singleItemId;
+      where.OR = [
+        { isPersonal: false },
+        { isPersonal: true, assigneeId: caller.id },
+      ];
     } else {
+      where.isPersonal = false;
       where.type = 'SHOOT';
       if (clientId) {
         where.clientId = clientId;

@@ -112,7 +112,7 @@ export function ContentDetailModal({
       platform: isPersonal ? 'PERSONAL' : platform,
       status,
       scheduledDate: scheduledDate || null,
-      assigneeId: assigneeId || null,
+      assigneeId: isPersonal ? (item.assigneeId || item.assignee?.id || assigneeId || null) : (assigneeId || null),
       clientId: isPersonal ? null : clientId || null,
       isPersonal,
       clientFeedbackNotes,

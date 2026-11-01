@@ -336,8 +336,9 @@ export default function ContentTrackerPage() {
       })
       .then((data) => {
         if (Array.isArray(data)) {
+          const agencyData = data.filter((item) => !item.isPersonal);
           const hasFilters = Boolean(selectedClient || selectedType || selectedStatus);
-          if (data.length > 0 || hasFilters) {
+          if (agencyData.length > 0 || hasFilters) {
             let savedOrder: string[] = [];
             if (typeof window !== 'undefined') {
               try {
@@ -347,20 +348,15 @@ export default function ContentTrackerPage() {
             }
             if (savedOrder.length > 0) {
               const orderMap = new Map(savedOrder.map((id, idx) => [id, idx]));
-              data.sort((a, b) => {
+              agencyData.sort((a, b) => {
                 const idxA = orderMap.has(a.id) ? orderMap.get(a.id)! : 9999;
                 const idxB = orderMap.has(b.id) ? orderMap.get(b.id)! : 9999;
                 return idxA - idxB;
               });
             }
-            setContentItems(data);
+            setContentItems(agencyData);
             if (!hasFilters) {
-              setCachedContent(data);
-              if (typeof window !== 'undefined') {
-                try {
-                  sessionStorage.setItem('trexo_cache_content', JSON.stringify(data));
-                } catch {}
-              }
+              setCachedContent(agencyData);
             }
           } else if (contentItems.length === 0 && retryCount < 2) {
             setTimeout(() => fetchTrackerData(retryCount + 1), 600);
